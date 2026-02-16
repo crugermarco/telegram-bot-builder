@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
+import { Telegraf } from 'telegraf';
 import TelegramBotService from "@/lib/telegram/bot";
 import { 
   setActiveBot, 
   stopAndRemoveBot,
-  isBotActive
+  isBotActive,
+  getActiveBot
 } from "@/lib/telegram/activeBots";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,29 +18,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // Función para esperar
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Función para forzar limpieza usando API directa de Telegram
-async function forceTelegramCleanup(token) {
-  console.log(`🧹 Forzando limpieza en Telegram...`);
-  
-  try {
-    const deleteWebhookRes = await axios.get(
-      `https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true`
-    );
-    console.log(`✅ deleteWebhook:`, deleteWebhookRes.data);
-
-    const setWebhookRes = await axios.post(
-      `https://api.telegram.org/bot${token}/setWebhook`,
-      { url: '' }
-    );
-    console.log(`✅ setWebhook:`, setWebhookRes.data);
-
-    return true;
-  } catch (error) {
-    console.error(`❌ Error en forceTelegramCleanup:`, error.response?.data || error.message);
-    return false;
-  }
-}
-
 export async function POST(request, { params }) {
   try {
     // ========== 1. VERIFICAR AUTENTICACIÓN ==========
@@ -46,22 +25,16 @@ export async function POST(request, { params }) {
                   request.headers.get("authorization")?.split(" ")[1];
     
     if (!token) {
-      return NextResponse.json(
-        { error: "No autorizado" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.NEXTAUTH_SECRET || "secret-key-2024"
-    );
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "secret-key-2024");
     const userId = decoded.userId;
     const botId = params.botId;
 
-    console.log(`🚀 Intentando iniciar bot ${botId}...`);
+    console.log(`🚀 INICIANDO bot ${botId}...`);
 
-    // ========== 2. VERIFICAR QUE EL BOT EXISTE Y PERTENECE AL USUARIO ==========
+    // ========== 2. VERIFICAR QUE EL BOT EXISTE ==========
     const { data: bot, error: botError } = await supabase
       .from('bots')
       .select('*')
@@ -70,90 +43,110 @@ export async function POST(request, { params }) {
       .single();
 
     if (botError || !bot) {
-      return NextResponse.json(
-        { error: "Bot no encontrado" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Bot no encontrado" }, { status: 404 });
     }
 
-    // ========== 3. VERIFICAR REQUISITOS ==========
-    if (!bot.token) {
-      return NextResponse.json(
-        { error: "El bot no tiene token de Telegram configurado" },
-        { status: 400 }
-      );
-    }
-
-    if (!bot.flow || !bot.flow.nodes || bot.flow.nodes.length === 0) {
-      return NextResponse.json(
-        { error: "El bot no tiene nodos configurados. Agrega al menos un mensaje." },
-        { status: 400 }
-      );
-    }
-
-    // ========== 4. LIMPIEZA COMPLETA ==========
-    console.log(`🔍 Limpiando instancias anteriores del bot ${botId}...`);
-    
+    // ========== 3. VERIFICAR SI YA HAY UNA INSTANCIA ACTIVA ==========
     if (isBotActive(botId)) {
-      console.log(`⚠️ Deteniendo instancia en memoria...`);
+      console.log(`⚠️ Ya hay una instancia activa del bot ${botId}, deteniéndola...`);
+      
+      // Detener la instancia anterior
       await stopAndRemoveBot(botId);
+      console.log(`✅ Instancia anterior detenida`);
+      
+      // Esperar a que Telegram libere la conexión
       await sleep(2000);
     }
 
-    console.log(`🔫 Ejecutando limpieza forzada con API directa...`);
-    await forceTelegramCleanup(bot.token);
-    
-    console.log(`⏳ Esperando 3 segundos...`);
-    await sleep(3000);
-
-    // ========== 5. INICIAR NUEVA INSTANCIA DEL BOT ==========
+    // ========== 4. LIMPIAR WEBHOOK EN TELEGRAM ==========
     try {
-      console.log(`🆕 Creando nueva instancia del bot ${botId}...`);
+      console.log(`🌐 Limpiando webhook en Telegram...`);
+      
+      // Usar Telegraf para limpiar
+      const tempBot = new Telegraf(bot.token);
+      await tempBot.telegram.callApi('deleteWebhook', { drop_pending_updates: true });
+      
+      // También usar API directa por si acaso
+      await axios.get(
+        `https://api.telegram.org/bot${bot.token}/deleteWebhook?drop_pending_updates=true`
+      );
+      
+      console.log(`✅ Webhook eliminado`);
+    } catch (cleanupError) {
+      console.log(`⚠️ Error limpiando webhook (no crítico):`, cleanupError.message);
+    }
+
+    await sleep(1000);
+
+    // ========== 5. INICIAR EL BOT ==========
+    try {
+      console.log(`🆕 Creando nueva instancia del bot...`);
       const botService = new TelegramBotService(bot.token, botId);
       
-      const started = await botService.start();
+      // Iniciar el bot (esto se queda ejecutándose)
+      // Pero NO debemos esperar a que termine para responder
+      botService.start().then(async (started) => {
+        if (started) {
+          console.log(`✅ Bot ${botId} iniciado correctamente`);
+          
+          // Guardar en memoria
+          setActiveBot(botId, botService);
+          
+          // Actualizar estado en BD
+          await supabase
+            .from('bots')
+            .update({ 
+              status: 'active', 
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', botId);
+            
+          console.log(`✅ Estado actualizado en BD`);
+        } else {
+          console.error(`❌ No se pudo iniciar el bot`);
+          
+          // Asegurar estado inactivo
+          await supabase
+            .from('bots')
+            .update({ status: 'inactive' })
+            .eq('id', botId);
+        }
+      }).catch(async (error) => {
+        console.error(`❌ Error iniciando bot:`, error);
+        
+        // Si hay error 409, forzar limpieza más agresiva
+        if (error.response?.error_code === 409) {
+          console.log(`⚠️ Error 409 detectado, forzando limpieza...`);
+          
+          // Intentar matar la instancia de Telegram
+          try {
+            await axios.get(
+              `https://api.telegram.org/bot${bot.token}/getUpdates`,
+              { params: { timeout: 1 } }
+            );
+            
+            await axios.post(
+              `https://api.telegram.org/bot${bot.token}/setWebhook`,
+              { url: '' }
+            );
+          } catch (e) {
+            console.log(`Error en limpieza forzada:`, e.message);
+          }
+        }
+        
+        // Actualizar BD a inactive
+        await supabase
+          .from('bots')
+          .update({ status: 'inactive' })
+          .eq('id', botId);
+      });
 
-      if (!started) {
-        throw new Error("No se pudo iniciar el bot");
-      }
-
-      // ========== 6. GUARDAR EN MEMORIA ==========
-      setActiveBot(botId, botService);
-      console.log(`✅ Bot ${botId} registrado en memoria activa`);
-
-      // ========== 7. ACTUALIZAR ESTADO EN BASE DE DATOS ==========
-      console.log(`📝 ACTUALIZANDO ESTADO EN BD a 'active'...`);
-      
-      const { error: updateError, data: updatedData } = await supabase
-        .from('bots')
-        .update({ 
-          status: 'active', 
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', botId)
-        .select();
-
-      if (updateError) {
-        console.error("❌ Error actualizando estado:", updateError);
-      } else {
-        console.log(`✅ Estado actualizado:`, updatedData);
-      }
-
-      // ========== 8. VERIFICAR QUE EL ESTADO SE ACTUALIZÓ ==========
-      const { data: verifyBot } = await supabase
-        .from('bots')
-        .select('status')
-        .eq('id', botId)
-        .single();
-
-      console.log(`🔍 VERIFICACIÓN - Estado en BD: ${verifyBot?.status}`);
-
-      // ========== 9. RESPONDER CON ÉXITO ==========
+      // ========== 6. RESPONDER INMEDIATAMENTE ==========
       return NextResponse.json({
         success: true,
-        message: "✅ Bot iniciado correctamente en Telegram",
+        message: "✅ Bot iniciándose en segundo plano...",
         botId: bot.id,
-        status: 'active', // ← ENVIAMOS 'active' EXPLÍCITAMENTE
+        status: 'active', // Decimos que está activo aunque el bot esté iniciando
         stats: {
           nodes: bot.flow.nodes.length,
           edges: bot.flow.edges?.length || 0
@@ -161,9 +154,9 @@ export async function POST(request, { params }) {
       });
 
     } catch (error) {
-      console.error("❌ Error iniciando bot:", error);
+      console.error("❌ Error en start:", error);
       
-      // Asegurar que el estado quede como inactivo
+      // Asegurar estado inactivo
       await supabase
         .from('bots')
         .update({ status: 'inactive' })
@@ -179,10 +172,7 @@ export async function POST(request, { params }) {
     console.error("Error en start:", error);
     
     if (error.name === 'JsonWebTokenError') {
-      return NextResponse.json(
-        { error: "Token inválido" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Token inválido" }, { status: 401 });
     }
     
     return NextResponse.json(

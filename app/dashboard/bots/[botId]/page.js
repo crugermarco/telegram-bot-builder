@@ -1695,22 +1695,23 @@ function BotBuilder() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
-
+  
       if (res.ok) {
         const data = await res.json();
         console.log(`✅ Respuesta del servidor:`, data);
         
+        // Actualizar estado inmediatamente con lo que devuelve el servidor
         if (data.status) {
           setBotStatus(data.status);
-        } else {
-          setBotStatus(botStatus === "active" ? "inactive" : "active");
         }
         
+        alert(`✅ Bot ${data.status === 'active' ? 'iniciándose' : 'detenido'}`);
+        
+        // Verificar el estado real después de 3 segundos
         setTimeout(async () => {
           await checkRealStatus();
-        }, 1000);
+        }, 3000);
         
-        alert(`✅ Bot ${data.status === 'active' ? 'iniciado' : 'detenido'}`);
       } else {
         const error = await res.json();
         alert(`❌ Error: ${error.error || 'Error desconocido'}`);
