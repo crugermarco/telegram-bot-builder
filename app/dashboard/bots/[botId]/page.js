@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 
 // ========== LISTA DE VARIABLES UNIFICADA ==========
-// Esta misma lista se usa en TODOS los nodos que manejan variables
 const AVAILABLE_VARIABLES = [
   { id: "fecha", label: "📅 Fecha", ejemplo: "13/2/2026", desc: "Fecha actual" },
   { id: "nombre", label: "👤 Nombre", ejemplo: "Juan Pérez", desc: "Nombre completo del usuario" },
@@ -1539,6 +1538,7 @@ function BotBuilder() {
   const [botStatus, setBotStatus] = useState("inactive");
   const [testMessage, setTestMessage] = useState("");
   const [testResponse, setTestResponse] = useState("");
+  const [syncingStatus, setSyncingStatus] = useState(false);
 
   const nodeTypes = useMemo(() => ({
     text: (props) => (
@@ -1585,33 +1585,73 @@ function BotBuilder() {
     )
   }), []);
 
+  // ========== useEffect CORREGIDO CON MEJOR MANEJO DE ERRORES ==========
   useEffect(() => {
     const loadBot = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) {
+          console.log("❌ No hay token, redirigiendo a login");
           router.push("/login");
           return;
         }
 
+        console.log("========== INICIANDO CARGA DEL BOT ==========");
+        console.log(`📦 Cargando bot ${params.botId}...`);
+
+        // 1. Cargar información del bot
         const botRes = await fetch(`/api/bots/${params.botId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
         if (botRes.ok) {
           const botData = await botRes.json();
-          setBot(botData.bot);
-          setBotStatus(botData.bot.status || "inactive");
+          console.log("✅ Bot data recibida:", botData);
+          
+          if (botData.bot) {
+            setBot(botData.bot);
+            setBotStatus(botData.bot.status || "inactive");
+            console.log(`✅ Estado del bot cargado: ${botData.bot.status}`);
+          } else {
+            console.error("❌ botData.bot es undefined");
+          }
+        } else {
+          console.error("❌ Error cargando bot:", await botRes.text());
         }
 
-        const flowRes = await fetch(`/api/bots/${params.botId}/flow`);
+        // 2. Cargar flow del bot
+        console.log(`🚀 Intentando cargar flow de ${params.botId}...`);
+        
+        const flowRes = await fetch(`/api/bots/${params.botId}/flow`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log(`📊 Respuesta del flow: status ${flowRes.status}`);
+        
         if (flowRes.ok) {
           const flowData = await flowRes.json();
-          if (flowData.flow?.nodes) setNodes(flowData.flow.nodes);
-          if (flowData.flow?.edges) setEdges(flowData.flow.edges);
+          console.log("✅ Flow recibido:", flowData);
+          
+          if (flowData.flow?.nodes && flowData.flow.nodes.length > 0) {
+            console.log(`🎉 Cargando ${flowData.flow.nodes.length} nodos!`);
+            setNodes(flowData.flow.nodes);
+            setEdges(flowData.flow.edges || []);
+          } else {
+            console.log("ℹ️ No hay nodos guardados");
+            setNodes([]);
+            setEdges([]);
+          }
+        } else {
+          const errorText = await flowRes.text();
+          console.error("❌ Error cargando flow:", errorText);
         }
+        
+        console.log("========== FIN CARGA ==========");
       } catch (error) {
-        console.error("Error:", error);
+        console.error("❌ Error general:", error);
       } finally {
         setLoading(false);
       }
@@ -1621,6 +1661,77 @@ function BotBuilder() {
       loadBot();
     }
   }, [params.botId, router]);
+
+  const checkRealStatus = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/bots/${params.botId}/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log("📊 Estado real:", data);
+        if (data.realStatus !== botStatus) {
+          setBotStatus(data.realStatus);
+        }
+        return data.realStatus;
+      }
+    } catch (error) {
+      console.error("Error verificando estado:", error);
+    }
+    return botStatus;
+  };
+
+  const toggleBotStatus = async () => {
+    setSyncingStatus(true);
+    try {
+      const token = localStorage.getItem("token");
+      const action = botStatus === "active" ? "stop" : "start";
+      
+      console.log(`🔄 Ejecutando acción: ${action}`);
+      
+      const res = await fetch(`/api/bots/${params.botId}/${action}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`✅ Respuesta del servidor:`, data);
+        
+        if (data.status) {
+          setBotStatus(data.status);
+        } else {
+          setBotStatus(botStatus === "active" ? "inactive" : "active");
+        }
+        
+        setTimeout(async () => {
+          await checkRealStatus();
+        }, 1000);
+        
+        alert(`✅ Bot ${data.status === 'active' ? 'iniciado' : 'detenido'}`);
+      } else {
+        const error = await res.json();
+        alert(`❌ Error: ${error.error || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cambiar estado");
+    } finally {
+      setSyncingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    if (botStatus === 'active') {
+      const interval = setInterval(() => {
+        checkRealStatus();
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [botStatus]);
 
   const saveFlow = async () => {
     setSaving(true);
@@ -1637,30 +1748,14 @@ function BotBuilder() {
 
       if (res.ok) {
         alert("✅ Flow guardado");
+      } else {
+        const error = await res.json();
+        alert(`❌ Error: ${error.error || 'Error desconocido'}`);
       }
     } catch (error) {
       alert("Error al guardar");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const toggleBotStatus = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const action = botStatus === "active" ? "stop" : "start";
-      
-      const res = await fetch(`/api/bots/${params.botId}/${action}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (res.ok) {
-        setBotStatus(botStatus === "active" ? "inactive" : "active");
-        alert(`✅ Bot ${botStatus === "active" ? "detenido" : "iniciado"}`);
-      }
-    } catch (error) {
-      alert("Error al cambiar estado");
     }
   };
 
@@ -1772,6 +1867,9 @@ function BotBuilder() {
               <div className="flex items-center space-x-2">
                 <span className={`w-2 h-2 rounded-full ${botStatus === "active" ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}></span>
                 <span className="text-sm text-gray-600">{botStatus === "active" ? "Activo" : "Inactivo"}</span>
+                {syncingStatus && (
+                  <span className="text-xs text-blue-600 ml-2">🔄 Sincronizando...</span>
+                )}
               </div>
             </div>
           </div>
@@ -1782,19 +1880,54 @@ function BotBuilder() {
             <Save className="w-4 h-4 mr-2" />
             {saving ? "Guardando..." : "Guardar"}
           </button>
-          <button onClick={toggleBotStatus}
-                  className={`px-4 py-2 rounded-lg flex items-center ${
-                    botStatus === "active" 
-                      ? "bg-red-600 hover:bg-red-700" 
-                      : "bg-green-600 hover:bg-green-700"
-                  } text-white`}>
-            {botStatus === "active" ? (
+          <button 
+            onClick={toggleBotStatus}
+            disabled={syncingStatus}
+            className={`px-4 py-2 rounded-lg flex items-center ${
+              botStatus === "active" 
+                ? "bg-red-600 hover:bg-red-700" 
+                : "bg-green-600 hover:bg-green-700"
+            } text-white ${syncingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            {syncingStatus ? (
+              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> Procesando...</>
+            ) : botStatus === "active" ? (
               <><Square className="w-4 h-4 mr-2" /> Detener</>
             ) : (
               <><Play className="w-4 h-4 mr-2" /> Publicar</>
             )}
           </button>
         </div>
+      </div>
+
+      <div className={`mx-6 my-2 px-4 py-3 rounded-lg flex items-center justify-between ${
+        botStatus === 'active' ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
+      }`}>
+        <div className="flex items-center">
+          <div className={`w-3 h-3 rounded-full mr-3 ${botStatus === 'active' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+          <span className={`text-sm font-medium ${botStatus === 'active' ? 'text-green-700' : 'text-yellow-700'}`}>
+            Estado: {botStatus === 'active' ? '🟢 Bot activo en Telegram' : '🟡 Bot inactivo'}
+          </span>
+        </div>
+        {botStatus === 'active' && (
+          <div className="flex items-center space-x-3">
+            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full flex items-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></span>
+              Respondiendo mensajes
+            </span>
+            <button 
+              onClick={checkRealStatus}
+              className="text-xs text-blue-600 hover:text-blue-800"
+              title="Verificar estado"
+            >
+              🔄 Verificar
+            </button>
+          </div>
+        )}
+        {botStatus === 'inactive' && (
+          <span className="text-xs text-yellow-600">
+            El bot no está respondiendo en Telegram
+          </span>
+        )}
       </div>
 
       <div className="flex-1 flex">
