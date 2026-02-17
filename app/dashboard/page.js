@@ -2,6 +2,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { 
+  User, 
+  Settings, 
+  CreditCard, 
+  LogOut,
+  Crown,
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  Bot,
+  BarChart,
+  Activity,
+  Grid,
+  Plus
+} from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -9,12 +24,44 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [userPlan, setUserPlan] = useState("gratis"); // gratis, premium, elite
   const [deletingId, setDeletingId] = useState(null);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [stats, setStats] = useState({
     totalNodes: 0,
     activeBots: 0,
     totalBots: 0
   });
+
+  const planDetails = {
+    gratis: {
+      name: "Gratis",
+      color: "from-slate-500 to-slate-600",
+      icon: <User className="w-4 h-4" />,
+      limits: {
+        bots: 1,
+        nodes: 10
+      }
+    },
+    premium: {
+      name: "Premium",
+      color: "from-blue-600 to-purple-600",
+      icon: <Crown className="w-4 h-4" />,
+      limits: {
+        bots: 3,
+        nodes: 20
+      }
+    },
+    elite: {
+      name: "Elite",
+      color: "from-purple-600 to-pink-600",
+      icon: <Zap className="w-4 h-4" />,
+      limits: {
+        bots: 5,
+        nodes: 30
+      }
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -30,7 +77,7 @@ export default function DashboardPage() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        // Intentar cargar usuario, pero no fallar si da error
+        // Intentar cargar usuario
         try {
           const verifyRes = await fetch("/api/auth/verify", {
             signal: controller.signal,
@@ -39,11 +86,14 @@ export default function DashboardPage() {
           
           if (verifyRes.ok) {
             const verifyData = await verifyRes.json();
-            if (isMounted) setUser(verifyData.user);
+            if (isMounted) {
+              setUser(verifyData.user);
+              // Aquí deberías cargar el plan del usuario desde tu BD
+              // setUserPlan(verifyData.user.plan || "gratis");
+            }
           }
         } catch (verifyErr) {
           console.warn("⚠️ Error en verify, continuando con bots:", verifyErr);
-          // Usar email del token o mostrar "Usuario"
           const emailFromToken = localStorage.getItem("userEmail");
           if (emailFromToken && isMounted) {
             setUser({ email: emailFromToken });
@@ -65,7 +115,6 @@ export default function DashboardPage() {
           if (isMounted) {
             setBots(botsList);
             
-            // Calcular estadísticas
             const totalNodes = botsList.reduce((acc, bot) => 
               acc + (bot.flow?.nodes?.length || 0), 0);
             const activeBots = botsList.filter(bot => bot.status === 'active').length;
@@ -126,7 +175,6 @@ export default function DashboardPage() {
         const updatedBots = bots.filter(bot => bot.id !== botId);
         setBots(updatedBots);
         
-        // Actualizar estadísticas
         const totalNodes = updatedBots.reduce((acc, bot) => 
           acc + (bot.flow?.nodes?.length || 0), 0);
         const activeBots = updatedBots.filter(bot => bot.status === 'active').length;
@@ -169,6 +217,16 @@ export default function DashboardPage() {
     });
   };
 
+  const getUsagePercentage = () => {
+    const limits = planDetails[userPlan].limits;
+    return {
+      bots: (stats.totalBots / limits.bots) * 100,
+      nodes: (stats.totalNodes / limits.nodes) * 100
+    };
+  };
+
+  const usagePercentage = getUsagePercentage();
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -195,7 +253,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-gradient-to-br from-red-600/5 via-transparent to-orange-600/5"></div>
         <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-10 text-center border border-slate-100">
           <div className="w-24 h-24 bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-8 transform rotate-3">
-            <span className="text-5xl">⚠️</span>
+            <AlertCircle className="w-12 h-12 text-red-500" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-3">Error de conexión</h2>
           <p className="text-slate-500 mb-8 leading-relaxed">{error}</p>
@@ -223,7 +281,7 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-200/50 transform -rotate-3 hover:rotate-0 transition-transform">
-                  <span className="text-white text-2xl font-bold">B</span>
+                  <Bot className="w-6 h-6 text-white" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
               </div>
@@ -235,30 +293,99 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Perfil de usuario */}
+            {/* Perfil de usuario con menú de cuenta */}
             <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-4">
-                <div className="text-right hidden md:block">
-                  <p className="text-sm font-medium text-slate-900">{user?.email || 'Usuario'}</p>
-                  <p className="text-xs text-slate-400">Administrador</p>
-                </div>
-                <div className="relative group">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-blue-200/50 transform group-hover:scale-105 transition-all">
+              {/* Badge del plan */}
+              <div className={`hidden md:flex items-center space-x-2 px-4 py-2 bg-gradient-to-r ${planDetails[userPlan].color} text-white rounded-full text-sm font-medium shadow-lg`}>
+                {planDetails[userPlan].icon}
+                <span>Plan {planDetails[userPlan].name}</span>
+              </div>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowAccountMenu(!showAccountMenu)}
+                  className="flex items-center space-x-4 focus:outline-none"
+                >
+                  <div className="text-right hidden md:block">
+                    <p className="text-sm font-medium text-slate-900">{user?.email || 'Usuario'}</p>
+                    <p className={`text-xs bg-gradient-to-r ${planDetails[userPlan].color} bg-clip-text text-transparent font-medium`}>
+                      Plan {planDetails[userPlan].name}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-blue-200/50 transform hover:scale-105 transition-all">
                     {getUserInitials()}
                   </div>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem('token');
-                        router.push('/login');
-                      }}
-                      className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center space-x-2"
-                    >
-                      <span>🚪</span>
-                      <span>Cerrar sesión</span>
-                    </button>
+                </button>
+
+                {/* Menú desplegable de cuenta */}
+                {showAccountMenu && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50">
+                    {/* Cabecera del menú */}
+                    <div className="px-4 py-3 border-b border-slate-100">
+                      <p className="text-sm font-medium text-slate-900">{user?.email || 'Usuario'}</p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${planDetails[userPlan].color}`}></div>
+                        <p className={`text-xs bg-gradient-to-r ${planDetails[userPlan].color} bg-clip-text text-transparent font-medium`}>
+                          Plan {planDetails[userPlan].name}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Opciones del menú */}
+                    <div className="py-2">
+                      <Link
+                        href="/dashboard/account"
+                        className="flex items-center space-x-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Settings className="w-5 h-5 text-slate-400" />
+                        <span>Configuración de cuenta</span>
+                      </Link>
+                      
+                      <Link
+                        href="/dashboard/billing"
+                        className="flex items-center space-x-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <CreditCard className="w-5 h-5 text-slate-400" />
+                        <span>Facturación y planes</span>
+                      </Link>
+
+                      {/* Opciones de upgrade según el plan actual */}
+                      {userPlan === 'gratis' && (
+                        <Link
+                          href="/pricing"
+                          className="flex items-center space-x-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 transition-colors border-t border-slate-100 mt-2"
+                        >
+                          <Crown className="w-5 h-5" />
+                          <span className="font-medium">Actualizar a Premium</span>
+                        </Link>
+                      )}
+
+                      {userPlan === 'premium' && (
+                        <Link
+                          href="/pricing"
+                          className="flex items-center space-x-3 px-4 py-3 text-sm text-purple-600 hover:bg-purple-50 transition-colors border-t border-slate-100 mt-2"
+                        >
+                          <Zap className="w-5 h-5" />
+                          <span className="font-medium">Actualizar a Elite</span>
+                        </Link>
+                      )}
+                    </div>
+
+                    {/* Cerrar sesión */}
+                    <div className="border-t border-slate-100 pt-2">
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem('token');
+                          router.push('/login');
+                        }}
+                        className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-5 h-5" />
+                        <span>Cerrar sesión</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -266,20 +393,54 @@ export default function DashboardPage() {
       </header>
 
       <main className="relative max-w-7xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
-        {/* Header con estadísticas */}
+        {/* Header con estadísticas y límites del plan */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 mb-2">Mis Bots</h2>
             <p className="text-slate-400">Gestiona y monitorea tus bots en tiempo real</p>
           </div>
           
-          <Link
-            href="/dashboard/bots/new"
-            className="mt-4 md:mt-0 inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-2xl shadow-xl shadow-blue-200/50 hover:shadow-2xl hover:shadow-blue-200/50 hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-[1.02] group"
-          >
-            <span className="mr-3 text-xl group-hover:rotate-90 transition-transform">+</span>
-            Crear nuevo bot
-          </Link>
+          <div className="mt-4 md:mt-0 flex items-center space-x-4">
+            {/* Indicador de uso del plan */}
+            <div className="bg-white rounded-2xl p-4 shadow-lg border border-slate-100">
+              <div className="flex items-center space-x-6">
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Bots usados</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg font-bold text-slate-900">{stats.totalBots}</span>
+                    <span className="text-sm text-slate-400">/ {planDetails[userPlan].limits.bots}</span>
+                  </div>
+                  <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full"
+                      style={{ width: `${Math.min(usagePercentage.bots, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Nodos usados</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg font-bold text-slate-900">{stats.totalNodes}</span>
+                    <span className="text-sm text-slate-400">/ {planDetails[userPlan].limits.nodes}</span>
+                  </div>
+                  <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1">
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-full"
+                      style={{ width: `${Math.min(usagePercentage.nodes, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/bots/new"
+              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-2xl shadow-xl shadow-blue-200/50 hover:shadow-2xl hover:shadow-blue-200/50 hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-[1.02] group"
+            >
+              <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform" />
+              Crear nuevo bot
+            </Link>
+          </div>
         </div>
 
         {/* Tarjetas de estadísticas */}
@@ -288,7 +449,7 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 hover:shadow-xl transition-all">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">🤖</span>
+                  <Bot className="w-6 h-6 text-blue-600" />
                 </div>
                 <span className="text-sm text-blue-600 font-medium bg-blue-50 px-3 py-1 rounded-full">Total</span>
               </div>
@@ -299,7 +460,7 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 hover:shadow-xl transition-all">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">📊</span>
+                  <Activity className="w-6 h-6 text-green-600" />
                 </div>
                 <span className="text-sm text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full">Activos</span>
               </div>
@@ -310,7 +471,7 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 hover:shadow-xl transition-all">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">⚡</span>
+                  <Grid className="w-6 h-6 text-purple-600" />
                 </div>
                 <span className="text-sm text-purple-600 font-medium bg-purple-50 px-3 py-1 rounded-full">Nodos</span>
               </div>
@@ -320,12 +481,35 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Mensaje de límite de plan si está cerca */}
+        {bots.length > 0 && (usagePercentage.bots >= 80 || usagePercentage.nodes >= 80) && (
+          <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Estás cerca del límite de tu plan {planDetails[userPlan].name}
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  {usagePercentage.bots >= 80 && 'Has usado casi todos tus bots disponibles. '}
+                  {usagePercentage.nodes >= 80 && 'Has usado casi todos tus nodos disponibles. '}
+                  <Link href="/pricing" className="font-medium underline hover:text-amber-700">
+                    Actualiza tu plan para obtener más recursos
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {bots.length === 0 ? (
           <div className="relative bg-white rounded-3xl shadow-2xl p-16 text-center border border-slate-100 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-600/5"></div>
             <div className="relative">
               <div className="w-40 h-40 bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl flex items-center justify-center mx-auto mb-8 transform rotate-3 hover:rotate-0 transition-transform">
-                <span className="text-7xl">🤖</span>
+                <Bot className="w-20 h-20 text-blue-600" />
               </div>
               <h3 className="text-3xl font-bold text-slate-900 mb-4">Comienza tu automatización</h3>
               <p className="text-slate-400 mb-10 max-w-lg mx-auto text-lg leading-relaxed">
@@ -335,7 +519,7 @@ export default function DashboardPage() {
                 href="/dashboard/bots/new"
                 className="inline-flex items-center px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-2xl shadow-xl shadow-blue-200/50 hover:shadow-2xl hover:shadow-blue-200/50 hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-[1.02] text-lg group"
               >
-                <span className="mr-3 text-2xl group-hover:rotate-90 transition-transform">+</span>
+                <Plus className="w-6 h-6 mr-2 group-hover:rotate-90 transition-transform" />
                 Crear mi primer bot
               </Link>
             </div>
@@ -361,7 +545,7 @@ export default function DashboardPage() {
                     <div className="flex items-center space-x-4">
                       <div className="relative">
                         <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform">
-                          <span className="text-3xl">🤖</span>
+                          <Bot className="w-8 h-8 text-blue-600" />
                         </div>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${
                           bot.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'
@@ -387,7 +571,9 @@ export default function DashboardPage() {
                       {deletingId === bot.id ? (
                         <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                       ) : (
-                        <span className="text-xl">🗑️</span>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       )}
                     </button>
                   </div>
@@ -418,7 +604,7 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-2 gap-3 mb-6">
                       <div className="bg-slate-50 rounded-xl p-4">
                         <div className="flex items-center text-xs text-slate-400 mb-1">
-                          <span className="mr-1">📊</span>
+                          <Grid className="w-4 h-4 mr-1" />
                           Nodos
                         </div>
                         <p className="text-2xl font-bold text-slate-900">
@@ -427,7 +613,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="bg-slate-50 rounded-xl p-4">
                         <div className="flex items-center text-xs text-slate-400 mb-1">
-                          <span className="mr-1">🔄</span>
+                          <Activity className="w-4 h-4 mr-1" />
                           Conexiones
                         </div>
                         <p className="text-2xl font-bold text-slate-900">

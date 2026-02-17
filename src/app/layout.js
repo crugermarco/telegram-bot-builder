@@ -1,4 +1,3 @@
-// app/layout.js - CORRECTO
 import './globals.css'
 
 export const metadata = {
