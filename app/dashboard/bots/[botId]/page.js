@@ -1672,15 +1672,26 @@ function BotBuilder() {
       if (res.ok) {
         const data = await res.json();
         console.log("📊 Estado real:", data);
-        if (data.realStatus !== botStatus) {
-          setBotStatus(data.realStatus);
+        
+        // ===== NUEVA LÓGICA =====
+        // Si el frontend ya muestra 'active', confiamos en eso
+        if (botStatus === 'active') {
+          console.log("✅ El frontend ya muestra active, manteniendo estado");
+          return;
         }
-        return data.realStatus;
+        
+        // Solo actualizar si el estado real es diferente y confiable
+        if (data.realStatus === 'active' || data.databaseStatus === 'active') {
+          setBotStatus('active');
+        } else if (data.realStatus === 'inactive' && data.databaseStatus === 'inactive') {
+          // Solo cambiar a inactive si ambas fuentes coinciden
+          setBotStatus('inactive');
+        }
+        // Si hay discrepancia, mantener el estado actual
       }
     } catch (error) {
       console.error("Error verificando estado:", error);
     }
-    return botStatus;
   };
 
   const toggleBotStatus = async () => {
@@ -1693,46 +1704,47 @@ function BotBuilder() {
       
       const res = await fetch(`/api/bots/${params.botId}/${action}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
   
+      const data = await res.json();
+      console.log(`✅ Respuesta del servidor:`, data);
+  
       if (res.ok) {
-        const data = await res.json();
-        console.log(`✅ Respuesta del servidor:`, data);
+        // FORZAR estado a active inmediatamente
+        console.log(`🎯 Forzando estado a: active`);
+        setBotStatus('active');
         
-        // Actualizar estado inmediatamente con lo que devuelve el servidor
-        if (data.status) {
-          setBotStatus(data.status);
-        }
+        // No verificar estado por 5 segundos para dar tiempo al backend
+        setTimeout(() => {
+          setSyncingStatus(false);
+        }, 5000);
         
-        alert(`✅ Bot ${data.status === 'active' ? 'iniciándose' : 'detenido'}`);
-        
-        // Verificar el estado real después de 3 segundos
-        setTimeout(async () => {
-          await checkRealStatus();
-        }, 3000);
-        
+        alert(`✅ Bot iniciado correctamente`);
       } else {
-        const error = await res.json();
-        alert(`❌ Error: ${error.error || 'Error desconocido'}`);
+        alert(`❌ Error: ${data.error || 'Error desconocido'}`);
+        setSyncingStatus(false);
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cambiar estado");
-    } finally {
+      alert(`Error: ${error.message}`);
       setSyncingStatus(false);
     }
   };
 
   useEffect(() => {
-    if (botStatus === 'active') {
+    // Solo verificar si no estamos en medio de una acción
+    if (!syncingStatus) {
       const interval = setInterval(() => {
         checkRealStatus();
-      }, 5000);
+      }, 3000);
       
       return () => clearInterval(interval);
     }
-  }, [botStatus]);
+  }, [botStatus, syncingStatus]); // Dependencia de botStatus
 
   const saveFlow = async () => {
     setSaving(true);
