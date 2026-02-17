@@ -43,7 +43,7 @@ export default function RegisterPage() {
       id: "premium",
       name: "Premium",
       description: "Para emprendedores",
-      price: 249,
+      price: 99,
       features: [
         "3 bots activos",
         "20 nodos por bot",
@@ -58,7 +58,7 @@ export default function RegisterPage() {
       id: "elite",
       name: "Elite",
       description: "Para negocios en crecimiento",
-      price: 599,
+      price: 249,
       features: [
         "5 bots activos",
         "30 nodos por bot",

@@ -39,7 +39,7 @@ export default function Home() {
     {
       name: "Premium",
       description: "Ideal para emprendedores y pequeñas empresas",
-      price: "249",
+      price: "99",
       period: "mes",
       features: [
         "3 bots activos",
@@ -57,7 +57,7 @@ export default function Home() {
     {
       name: "Elite",
       description: "La solución completa para negocios en crecimiento",
-      price: "599",
+      price: "249",
       period: "mes",
       features: [
         "5 bots activos",

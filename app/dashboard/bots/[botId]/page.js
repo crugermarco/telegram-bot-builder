@@ -16,32 +16,57 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { 
-  ArrowLeft, Bot, Save, Power, Square, Send,
-  MessageSquare, CheckCircle, GitBranch, Webhook, Clock,
-  Plus, Trash2, Copy, Zap, Play, Edit, X, Database, Trash, ChevronDown, ChevronUp,
-  Table2, CheckCircle as CheckCircleIcon, Flag, HelpCircle
+  ArrowLeft, 
+  Bot, 
+  Save, 
+  Square, 
+  Send,
+  MessageSquare, 
+  CheckCircle, 
+  GitBranch, 
+  Clock,
+  Plus, 
+  Trash2, 
+  Copy, 
+  Zap, 
+  Play, 
+  Edit, 
+  X, 
+  Database, 
+  Table2, 
+  CheckCircle as CheckCircleIcon, 
+  Flag, 
+  HelpCircle,
+  Activity,
+  Grid,
+  Key,
+  AlertCircle,
+  Info,
+  Settings,
+  Power,
+  Loader2
 } from "lucide-react";
 
-// ========== LISTA DE VARIABLES UNIFICADA ==========
+// ========== LISTA DE VARIABLES UNIFICADA (SIN EMOJIS) ==========
 const AVAILABLE_VARIABLES = [
-  { id: "fecha", label: "📅 Fecha", ejemplo: "13/2/2026", desc: "Fecha actual" },
-  { id: "nombre", label: "👤 Nombre", ejemplo: "Juan Pérez", desc: "Nombre completo del usuario" },
-  { id: "respuesta", label: "💬 Respuesta", ejemplo: "Sí, me gusta", desc: "Última respuesta del usuario" },
-  { id: "id", label: "🆔 ID", ejemplo: "123456789", desc: "ID de Telegram del usuario" },
-  { id: "hora", label: "⏰ Hora", ejemplo: "15:30", desc: "Hora actual" },
-  { id: "ultimo_mensaje", label: "📨 Último mensaje", ejemplo: "Hola bot", desc: "Último mensaje enviado" },
-  { id: "username", label: "🔤 Username", ejemplo: "@usuario123", desc: "Nombre de usuario de Telegram" },
-  { id: "email", label: "📧 Email", ejemplo: "cliente@email.com", desc: "Correo electrónico" },
-  { id: "telefono", label: "📱 Teléfono", ejemplo: "5512345678", desc: "Número de teléfono" },
-  { id: "direccion", label: "🏠 Dirección", ejemplo: "Calle 123 #45-67", desc: "Dirección física" },
-  { id: "ciudad", label: "🌆 Ciudad", ejemplo: "Ciudad de México", desc: "Ciudad" },
-  { id: "edad", label: "🎂 Edad", ejemplo: "25", desc: "Edad del usuario" },
-  { id: "fecha_nacimiento", label: "📅 Fecha nacimiento", ejemplo: "15/05/1990", desc: "Fecha de nacimiento" },
-  { id: "comentario", label: "💭 Comentario", ejemplo: "Me encanta el servicio", desc: "Comentario adicional" },
-  { id: "callback_data", label: "🔄 Callback", ejemplo: "opcion_1", desc: "Datos del botón presionado" }
+  { id: "fecha", label: "Fecha", ejemplo: "13/2/2026", desc: "Fecha actual", icon: "📅" },
+  { id: "nombre", label: "Nombre", ejemplo: "Juan Pérez", desc: "Nombre completo del usuario", icon: "👤" },
+  { id: "respuesta", label: "Respuesta", ejemplo: "Sí, me gusta", desc: "Última respuesta del usuario", icon: "💬" },
+  { id: "id", label: "ID", ejemplo: "123456789", desc: "ID de Telegram del usuario", icon: "🆔" },
+  { id: "hora", label: "Hora", ejemplo: "15:30", desc: "Hora actual", icon: "⏰" },
+  { id: "ultimo_mensaje", label: "Último mensaje", ejemplo: "Hola bot", desc: "Último mensaje enviado", icon: "📨" },
+  { id: "username", label: "Username", ejemplo: "@usuario123", desc: "Nombre de usuario de Telegram", icon: "🔤" },
+  { id: "email", label: "Email", ejemplo: "cliente@email.com", desc: "Correo electrónico", icon: "📧" },
+  { id: "telefono", label: "Teléfono", ejemplo: "5512345678", desc: "Número de teléfono", icon: "📱" },
+  { id: "direccion", label: "Dirección", ejemplo: "Calle 123 #45-67", desc: "Dirección física", icon: "🏠" },
+  { id: "ciudad", label: "Ciudad", ejemplo: "Ciudad de México", desc: "Ciudad", icon: "🌆" },
+  { id: "edad", label: "Edad", ejemplo: "25", desc: "Edad del usuario", icon: "🎂" },
+  { id: "fecha_nacimiento", label: "Fecha nacimiento", ejemplo: "15/05/1990", desc: "Fecha de nacimiento", icon: "📅" },
+  { id: "comentario", label: "Comentario", ejemplo: "Me encanta el servicio", desc: "Comentario adicional", icon: "💭" },
+  { id: "callback_data", label: "Callback", ejemplo: "opcion_1", desc: "Datos del botón presionado", icon: "🔄" }
 ];
 
-// ========== NODO DE TEXTO ==========
+// ========== NODO DE TEXTO (ESTILOS MEJORADOS) ==========
 const TextMessageNode = ({ id, data, isConnectable, onUpdate }) => {
   const [localContent, setLocalContent] = useState(data.content || "");
 
@@ -59,12 +84,12 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate }) => {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-blue-500 min-w-[300px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-blue-500 min-w-[300px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500" />
       
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <div className="p-1.5 bg-blue-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg mr-2">
             <MessageSquare className="w-5 h-5 text-blue-600" />
           </div>
           <span className="font-semibold text-blue-700">Mensaje</span>
@@ -83,7 +108,7 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate }) => {
         onBlur={handleBlur}
         onClick={(e) => e.stopPropagation()}
         rows="4"
-        className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+        className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         placeholder="Escribe tu mensaje..."
       />
       
@@ -94,7 +119,7 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate }) => {
             checked={data.typing || false}
             onChange={(e) => onUpdate?.({ typing: e.target.checked })}
             onClick={(e) => e.stopPropagation()}
-            className="mr-1.5 rounded border-gray-300"
+            className="mr-1.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           Simular escritura
         </label>
@@ -105,7 +130,7 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate }) => {
   );
 };
 
-// ========== NODO DE BOTONES - SIMPLIFICADO ==========
+// ========== NODO DE BOTONES (ESTILOS MEJORADOS) ==========
 const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [question, setQuestion] = useState(data.question || "¿Qué opción prefieres?");
@@ -163,7 +188,7 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
             style={{ left: `${leftPosition}%`, bottom: '-8px' }}
           />
           <div 
-            className="absolute text-[10px] text-green-700 font-medium whitespace-nowrap bg-green-50 px-2 py-0.5 rounded-full"
+            className="absolute text-[10px] text-green-700 font-medium whitespace-nowrap bg-green-50 px-2 py-0.5 rounded-full border border-green-200"
             style={{ 
               left: `${leftPosition}%`, 
               bottom: '-24px', 
@@ -178,12 +203,12 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-green-500 min-w-[350px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-green-500 min-w-[350px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-green-500" />
       
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center">
-          <div className="p-1.5 bg-green-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-green-50 to-green-100 rounded-lg mr-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
           </div>
           <span className="font-semibold text-green-700">Botones</span>
@@ -210,12 +235,12 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
       {!showEditor ? (
         <div className="bg-gray-50 p-3 rounded-lg">
           <div className="mb-3 font-medium text-gray-800 border-b pb-2">
-            <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">📢 PREGUNTA:</span>
+            <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">Pregunta:</span>
             {question}
           </div>
           
           <div className="space-y-2">
-            <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">🔘 OPCIONES:</span>
+            <span className="text-xs uppercase tracking-wider text-gray-500 block mb-1">Opciones:</span>
             {options.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {options.map((opt, i) => (
@@ -248,7 +273,7 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
 
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
-              📢 Pregunta
+              Pregunta
             </label>
             <textarea
               value={question}
@@ -265,7 +290,7 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-gray-700">
-                🔘 Opciones
+                Opciones
               </label>
               <span className="text-xs text-gray-500">
                 {options.length} configuradas
@@ -310,7 +335,7 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
 
           <div className="bg-yellow-50 p-3 rounded-lg">
             <p className="text-xs text-yellow-700">
-              <strong>⚡ SIMPLIFICADO:</strong><br />
+              <strong>SIMPLIFICADO:</strong><br />
               • El texto del botón ES el valor que se envía<br />
               • No más confusión entre "texto" y "valor"<br />
               • La condición compara directamente con el texto del botón
@@ -326,7 +351,7 @@ const ButtonsNode = ({ id, data, isConnectable, onUpdate }) => {
   );
 };
 
-// ========== NODO DE CONDICIÓN ==========
+// ========== NODO DE CONDICIÓN (ESTILOS MEJORADOS) ==========
 const ConditionNode = ({ id, data, isConnectable, onUpdate }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [variable, setVariable] = useState(data.variable || "respuesta");
@@ -356,12 +381,12 @@ const ConditionNode = ({ id, data, isConnectable, onUpdate }) => {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-yellow-500 min-w-[280px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-yellow-500 min-w-[280px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-yellow-500" />
       
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center">
-          <div className="p-1.5 bg-yellow-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg mr-2">
             <GitBranch className="w-5 h-5 text-yellow-600" />
           </div>
           <span className="font-semibold text-yellow-700">Condición</span>
@@ -445,7 +470,7 @@ const ConditionNode = ({ id, data, isConnectable, onUpdate }) => {
               className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-yellow-500"
             />
             <p className="text-xs text-gray-400 mt-1">
-              ⚠️ El valor debe coincidir EXACTAMENTE con la opción del botón
+              El valor debe coincidir EXACTAMENTE con la opción del botón
             </p>
           </div>
 
@@ -488,7 +513,7 @@ const ConditionNode = ({ id, data, isConnectable, onUpdate }) => {
   );
 };
 
-// ========== NODO DE GOOGLE SHEETS - CON LISTA UNIFICADA ==========
+// ========== NODO DE GOOGLE SHEETS (ESTILOS MEJORADOS) ==========
 const GoogleSheetsNode = ({ id, data, isConnectable, onUpdate }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [showHelp, setShowHelp] = useState(data.showHelp !== false);
@@ -497,7 +522,6 @@ const GoogleSheetsNode = ({ id, data, isConnectable, onUpdate }) => {
   const [appsScriptUrl, setAppsScriptUrl] = useState(data.appsScriptUrl || "");
   const [sheetName, setSheetName] = useState(data.sheetName || "Hoja1");
   
-  // Columnas seleccionadas por el usuario
   const [columns, setColumns] = useState(data.columns || [
     { column: "A", variable: "fecha", activa: true },
     { column: "B", variable: "nombre", activa: true },
@@ -648,15 +672,15 @@ function doGet() {
     const activeCount = columns.filter(c => c.activa && c.variable).length;
     
     return (
-      <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-purple-500 min-w-[500px] group relative">
+      <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-purple-500 min-w-[500px] group relative hover:shadow-2xl transition-all duration-300">
         <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
         
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center">
-            <div className="p-1.5 bg-purple-100 rounded-lg mr-2">
+            <div className="p-1.5 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg mr-2">
               <Table2 className="w-5 h-5 text-purple-600" />
             </div>
-            <span className="font-semibold text-purple-700">📊 Guardar en Sheets</span>
+            <span className="font-semibold text-purple-700">Guardar en Sheets</span>
           </div>
           <button
             onClick={handleDelete}
@@ -860,15 +884,15 @@ function doGet() {
   }
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-purple-500 min-w-[320px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-purple-500 min-w-[320px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
       
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <div className="p-1.5 bg-purple-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg mr-2">
             <Table2 className="w-5 h-5 text-purple-600" />
           </div>
-          <span className="font-semibold text-purple-700">📊 Guardar en Sheets</span>
+          <span className="font-semibold text-purple-700">Guardar en Sheets</span>
         </div>
         <div className="flex items-center space-x-1">
           <button
@@ -876,7 +900,7 @@ function doGet() {
             className="p-1.5 hover:bg-blue-100 rounded-lg transition"
             title="Ver instrucciones"
           >
-            <span className="text-xs font-bold text-blue-600 w-4 h-4 flex items-center justify-center">?</span>
+            <Info className="w-4 h-4 text-blue-600" />
           </button>
           <button
             onClick={() => setShowEditor(true)}
@@ -899,7 +923,7 @@ function doGet() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
                 <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-mono mr-2">
-                  ✅ CONFIGURADO
+                  CONFIGURADO
                 </span>
                 <span className="text-xs font-medium text-gray-700">
                   {sheetName}
@@ -944,9 +968,10 @@ function doGet() {
         ) : (
           <div className="text-xs text-gray-400 italic text-center py-3 flex flex-col items-center">
             <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-[10px] font-medium mb-2 flex items-center">
-              <span className="mr-1">📋</span> Sin configurar
+              <Info className="w-3 h-3 mr-1" />
+              Sin configurar
             </span>
-            Haz clic en <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded mx-1">?</span> para conectar con Sheets
+            Haz clic en <Info className="w-3 h-3 text-blue-600 inline mx-1" /> para conectar con Sheets
           </div>
         )}
       </div>
@@ -963,7 +988,7 @@ function doGet() {
                 }}
                 className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
               >
-                <span className="bg-blue-100 rounded-full w-5 h-5 flex items-center justify-center mr-1">?</span>
+                <Info className="w-4 h-4 mr-1" />
                 Ayuda
               </button>
             </div>
@@ -1086,7 +1111,7 @@ function doGet() {
   );
 };
 
-// ========== NODO DE PREGUNTAR Y GUARDAR - CON LISTA UNIFICADA ==========
+// ========== NODO DE PREGUNTAR Y GUARDAR (ESTILOS MEJORADOS) ==========
 const PreguntarGuardarNode = ({ id, data, isConnectable, onUpdate }) => {
   const [showEditor, setShowEditor] = useState(false);
   
@@ -1113,15 +1138,15 @@ const PreguntarGuardarNode = ({ id, data, isConnectable, onUpdate }) => {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-orange-500 min-w-[320px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-orange-500 min-w-[320px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-orange-500" />
       
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <div className="p-1.5 bg-orange-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg mr-2">
             <HelpCircle className="w-5 h-5 text-orange-600" />
           </div>
-          <span className="font-semibold text-orange-700">❓ Preguntar y Guardar</span>
+          <span className="font-semibold text-orange-700">Preguntar y Guardar</span>
         </div>
         <div className="flex items-center space-x-1">
           <button
@@ -1143,7 +1168,7 @@ const PreguntarGuardarNode = ({ id, data, isConnectable, onUpdate }) => {
       <div className="bg-gray-50 p-3 rounded-lg">
         <div className="flex items-center mb-2">
           <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-mono mr-2">
-            ❓ PREGUNTA
+            PREGUNTA
           </span>
         </div>
         <div className="text-sm font-medium text-gray-800 mb-2">
@@ -1255,7 +1280,7 @@ const PreguntarGuardarNode = ({ id, data, isConnectable, onUpdate }) => {
   );
 };
 
-// ========== NODO DE VARIABLE - CORREGIDO ==========
+// ========== NODO DE VARIABLE (ESTILOS MEJORADOS) ==========
 const VariableNode = ({ id, data, isConnectable, onUpdate }) => {
   const [showEditor, setShowEditor] = useState(false);
 
@@ -1292,12 +1317,12 @@ const VariableNode = ({ id, data, isConnectable, onUpdate }) => {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-indigo-500 min-w-[320px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-indigo-500 min-w-[320px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-indigo-500" />
       
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center">
-          <div className="p-1.5 bg-indigo-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg mr-2">
             <Database className="w-5 h-5 text-indigo-600" />
           </div>
           <span className="font-semibold text-indigo-700">Guardar Dato</span>
@@ -1338,7 +1363,7 @@ const VariableNode = ({ id, data, isConnectable, onUpdate }) => {
             </span>
           </div>
           <div className="text-xs text-gray-500 mt-2">
-            📤 Se enviará a Google Sheets
+            Se enviará a Google Sheets
           </div>
         </div>
       ) : (
@@ -1390,7 +1415,7 @@ const VariableNode = ({ id, data, isConnectable, onUpdate }) => {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-600 mb-1">⚡ Variables predefinidas</label>
+            <label className="block text-xs text-gray-600 mb-1">Variables predefinidas</label>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_VARIABLES.slice(0, 8).map((v, i) => (
                 <button
@@ -1411,14 +1436,14 @@ const VariableNode = ({ id, data, isConnectable, onUpdate }) => {
               onChange={(e) => setStorageType(e.target.value)}
               className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="temporal">💾 Solo sesión</option>
-              <option value="permanente">☁️ Base de datos</option>
+              <option value="temporal">Solo sesión</option>
+              <option value="permanente">Base de datos</option>
             </select>
           </div>
 
           <div className="bg-purple-50 p-2 rounded-lg">
             <p className="text-xs text-purple-700">
-              <span className="font-bold">✅ MODO SHEETS:</span> La operación es siempre "Guardar"
+              <span className="font-bold">MODO SHEETS:</span> La operación es siempre "Guardar"
             </p>
           </div>
 
@@ -1437,7 +1462,7 @@ const VariableNode = ({ id, data, isConnectable, onUpdate }) => {
   );
 };
 
-// ========== NODO DE DELAY ==========
+// ========== NODO DE DELAY (ESTILOS MEJORADOS) ==========
 const DelayNode = ({ id, data, isConnectable, onUpdate }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [seconds, setSeconds] = useState(data.seconds || 1);
@@ -1455,12 +1480,12 @@ const DelayNode = ({ id, data, isConnectable, onUpdate }) => {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-xl bg-white border-2 border-gray-500 min-w-[280px] group">
+    <div className="px-4 py-3 shadow-xl rounded-xl bg-white/90 backdrop-blur-sm border-2 border-gray-500 min-w-[280px] group hover:shadow-2xl transition-all duration-300">
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-gray-500" />
       
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center">
-          <div className="p-1.5 bg-gray-100 rounded-lg mr-2">
+          <div className="p-1.5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg mr-2">
             <Clock className="w-5 h-5 text-gray-600" />
           </div>
           <span className="font-semibold text-gray-700">Temporizador</span>
@@ -1486,7 +1511,7 @@ const DelayNode = ({ id, data, isConnectable, onUpdate }) => {
 
       {!showEditor ? (
         <div className="text-sm bg-gray-50 p-3 rounded-lg">
-          ⏱️ Esperar {seconds} segundo(s)
+          Esperar {seconds} segundo(s)
         </div>
       ) : (
         <div className="bg-gray-50 p-3 rounded-lg space-y-3">
@@ -1526,7 +1551,7 @@ const DelayNode = ({ id, data, isConnectable, onUpdate }) => {
   );
 };
 
-// ========== COMPONENTE PRINCIPAL ==========
+// ========== COMPONENTE PRINCIPAL (ESTILOS MEJORADOS) ==========
 function BotBuilder() {
   const params = useParams();
   const router = useRouter();
@@ -1585,7 +1610,7 @@ function BotBuilder() {
     )
   }), []);
 
-  // ========== useEffect CORREGIDO CON MEJOR MANEJO DE ERRORES ==========
+  // ========== useEffect (sin cambios en la lógica) ==========
   useEffect(() => {
     const loadBot = async () => {
       try {
@@ -1744,7 +1769,7 @@ function BotBuilder() {
       
       return () => clearInterval(interval);
     }
-  }, [botStatus, syncingStatus]); // Dependencia de botStatus
+  }, [botStatus, syncingStatus]);
 
   const saveFlow = async () => {
     setSaving(true);
@@ -1855,84 +1880,125 @@ function BotBuilder() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-purple-600/5 pointer-events-none"></div>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando editor...</p>
+          <div className="relative">
+            <div className="w-24 h-24 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-8"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full animate-pulse opacity-75"></div>
+            </div>
+          </div>
+          <h2 className="text-2xl font-light text-slate-700 mb-2">Cargando editor</h2>
+          <p className="text-slate-400">Preparando tu espacio de trabajo</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <div className="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-4">
-          <Link href="/dashboard" className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">{bot?.name || "Mi Bot"}</h1>
-              <div className="flex items-center space-x-2">
-                <span className={`w-2 h-2 rounded-full ${botStatus === "active" ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}></span>
-                <span className="text-sm text-gray-600">{botStatus === "active" ? "Activo" : "Inactivo"}</span>
-                {syncingStatus && (
-                  <span className="text-xs text-blue-600 ml-2">🔄 Sincronizando...</span>
-                )}
+    <div className="h-screen flex flex-col bg-slate-50 relative overflow-hidden">
+      {/* Fondo con gradiente sutil */}
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-purple-600/5 pointer-events-none"></div>
+      
+      {/* Header mejorado */}
+      <header className="relative bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
+        <div className="px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Link 
+              href="/dashboard" 
+              className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-200/50 transform -rotate-3 hover:rotate-0 transition-transform">
+                  <Bot className="w-6 h-6 text-white" />
+                </div>
+                <div className={`absolute -top-1 -right-1 w-3 h-3 ${
+                  botStatus === 'active' ? 'bg-green-500' : 'bg-slate-400'
+                } rounded-full border-2 border-white`}></div>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  {bot?.name || "Mi Bot"}
+                </h1>
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm ${
+                    botStatus === 'active' ? 'text-green-600' : 'text-slate-400'
+                  }`}>
+                    {botStatus === 'active' ? 'Activo' : 'Inactivo'}
+                  </span>
+                  {syncingStatus && (
+                    <span className="text-xs text-blue-600 ml-2 flex items-center">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Sincronizando...
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={saveFlow} 
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all flex items-center shadow-lg shadow-blue-200/50 disabled:opacity-50"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
+            <button 
+              onClick={toggleBotStatus}
+              disabled={syncingStatus}
+              className={`px-4 py-2 rounded-xl flex items-center transition-all shadow-lg ${
+                botStatus === "active" 
+                  ? "bg-red-600 hover:bg-red-700 text-white shadow-red-200/50" 
+                  : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-blue-200/50"
+              } ${syncingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {syncingStatus ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
+              ) : botStatus === "active" ? (
+                <><Square className="w-4 h-4 mr-2" /> Detener</>
+              ) : (
+                <><Play className="w-4 h-4 mr-2" /> Publicar</>
+              )}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <button onClick={saveFlow} disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? "Guardando..." : "Guardar"}
-          </button>
-          <button 
-            onClick={toggleBotStatus}
-            disabled={syncingStatus}
-            className={`px-4 py-2 rounded-lg flex items-center ${
-              botStatus === "active" 
-                ? "bg-red-600 hover:bg-red-700" 
-                : "bg-green-600 hover:bg-green-700"
-            } text-white ${syncingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {syncingStatus ? (
-              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> Procesando...</>
-            ) : botStatus === "active" ? (
-              <><Square className="w-4 h-4 mr-2" /> Detener</>
-            ) : (
-              <><Play className="w-4 h-4 mr-2" /> Publicar</>
-            )}
-          </button>
-        </div>
-      </div>
+      </header>
 
-      <div className={`mx-6 my-2 px-4 py-3 rounded-lg flex items-center justify-between ${
-        botStatus === 'active' ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
+      {/* Indicador de estado mejorado */}
+      <div className={`mx-6 my-2 px-4 py-3 rounded-xl flex items-center justify-between backdrop-blur-sm ${
+        botStatus === 'active' 
+          ? 'bg-green-50/80 border border-green-200' 
+          : 'bg-yellow-50/80 border border-yellow-200'
       }`}>
         <div className="flex items-center">
-          <div className={`w-3 h-3 rounded-full mr-3 ${botStatus === 'active' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
-          <span className={`text-sm font-medium ${botStatus === 'active' ? 'text-green-700' : 'text-yellow-700'}`}>
-            Estado: {botStatus === 'active' ? '🟢 Bot activo en Telegram' : '🟡 Bot inactivo'}
+          <div className={`w-3 h-3 rounded-full mr-3 ${
+            botStatus === 'active' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'
+          }`}></div>
+          <span className={`text-sm font-medium ${
+            botStatus === 'active' ? 'text-green-700' : 'text-yellow-700'
+          }`}>
+            {botStatus === 'active' ? 'Bot activo en Telegram' : 'Bot inactivo'}
           </span>
         </div>
         {botStatus === 'active' && (
           <div className="flex items-center space-x-3">
             <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full flex items-center">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></span>
+              <Activity className="w-3 h-3 mr-1" />
               Respondiendo mensajes
             </span>
             <button 
               onClick={checkRealStatus}
-              className="text-xs text-blue-600 hover:text-blue-800"
+              className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
               title="Verificar estado"
             >
-              🔄 Verificar
+              <Loader2 className="w-3 h-3 mr-1" />
+              Verificar
             </button>
           </div>
         )}
@@ -1943,60 +2009,61 @@ function BotBuilder() {
         )}
       </div>
 
+      {/* Panel lateral y editor (sin cambios en la estructura) */}
       <div className="flex-1 flex">
-        <div className="w-64 bg-white border-r p-4 overflow-y-auto">
+        <div className="w-64 bg-white/80 backdrop-blur-xl border-r border-slate-200/60 p-4 overflow-y-auto">
           <h3 className="font-bold mb-4 flex items-center">
             <Zap className="w-4 h-4 mr-2 text-yellow-500" />
             Nodos
           </h3>
           <div className="space-y-2">
             <button onClick={() => addNode("text")} 
-                    className="w-full flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100">
+                    className="w-full flex items-center p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all">
               <MessageSquare className="w-5 h-5 text-blue-600 mr-3" />
               <span className="font-medium text-blue-700">Mensaje</span>
             </button>
             <button onClick={() => addNode("buttons")}
-                    className="w-full flex items-center p-3 bg-green-50 rounded-lg hover:bg-green-100">
+                    className="w-full flex items-center p-3 bg-green-50 rounded-xl hover:bg-green-100 transition-all">
               <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
               <span className="font-medium text-green-700">Botones</span>
             </button>
             <button onClick={() => addNode("condition")}
-                    className="w-full flex items-center p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100">
+                    className="w-full flex items-center p-3 bg-yellow-50 rounded-xl hover:bg-yellow-100 transition-all">
               <GitBranch className="w-5 h-5 text-yellow-600 mr-3" />
               <span className="font-medium text-yellow-700">Condición</span>
             </button>
             <button onClick={() => addNode("preguntar")}
-                    className="w-full flex items-center p-3 bg-orange-50 rounded-lg hover:bg-orange-100 border-2 border-orange-200">
+                    className="w-full flex items-center p-3 bg-orange-50 rounded-xl hover:bg-orange-100 border-2 border-orange-200 transition-all">
               <HelpCircle className="w-5 h-5 text-orange-600 mr-3" />
               <span className="font-medium text-orange-700">Preguntar y Guardar</span>
             </button>
             <button onClick={() => addNode("variable")}
-                    className="w-full flex items-center p-3 bg-indigo-50 rounded-lg hover:bg-indigo-100">
+                    className="w-full flex items-center p-3 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-all">
               <Database className="w-5 h-5 text-indigo-600 mr-3" />
               <span className="font-medium text-indigo-700">Guardar Dato</span>
             </button>
             <button onClick={() => addNode("googlesheets")}
-                    className="w-full flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100">
+                    className="w-full flex items-center p-3 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all">
               <Table2 className="w-5 h-5 text-purple-600 mr-3" />
-              <span className="font-medium text-purple-700">📊 Google Sheets</span>
+              <span className="font-medium text-purple-700">Google Sheets</span>
             </button>
             <button onClick={() => addNode("delay")}
-                    className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+                    className="w-full flex items-center p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all">
               <Clock className="w-5 h-5 text-gray-600 mr-3" />
               <span className="font-medium text-gray-700">Temporizador</span>
             </button>
           </div>
-          <div className="mt-6 pt-4 border-t">
-            <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="mt-6 pt-4 border-t border-slate-200">
+            <div className="bg-slate-50 p-3 rounded-xl">
               <div className="flex justify-between text-sm mb-1">
-                <span>Nodos usados</span>
-                <span className="font-bold">{nodes.length}/10</span>
+                <span className="text-slate-600">Nodos usados</span>
+                <span className="font-bold text-slate-900">{nodes.length}/10</span>
               </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-600 transition-all" 
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all" 
                      style={{ width: `${(nodes.length / 10) * 100}%` }} />
               </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
+              <p className="text-xs text-slate-500 mt-2 text-center">
                 Plan gratuito: 10 nodos máximos
               </p>
             </div>
@@ -2020,10 +2087,11 @@ function BotBuilder() {
         </div>
       </div>
 
-      <div className="fixed bottom-6 right-6 w-96 bg-white rounded-xl shadow-2xl border p-4">
+      {/* Panel de prueba (estilos mejorados) */}
+      <div className="fixed bottom-6 right-6 w-96 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 p-4">
         <div className="flex items-center mb-3">
           <Send className="w-4 h-4 mr-2 text-blue-600" />
-          <h4 className="font-semibold">Probar Bot</h4>
+          <h4 className="font-semibold text-slate-900">Probar Bot</h4>
         </div>
         <div className="flex space-x-2">
           <input
@@ -2032,17 +2100,17 @@ function BotBuilder() {
             onChange={(e) => setTestMessage(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && testBot()}
             placeholder="Escribe un mensaje..."
-            className="flex-1 px-3 py-2 border rounded-lg text-sm"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50"
           />
           <button onClick={testBot}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all text-sm shadow-lg shadow-blue-200/50">
             Enviar
           </button>
         </div>
         {testResponse && (
-          <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm">
-            <span className="font-medium">Respuesta:</span>
-            <p className="mt-1">{testResponse}</p>
+          <div className="mt-3 p-3 bg-slate-50 rounded-xl text-sm">
+            <span className="font-medium text-slate-700">Respuesta:</span>
+            <p className="mt-1 text-slate-600">{testResponse}</p>
           </div>
         )}
       </div>
