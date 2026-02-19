@@ -190,12 +190,6 @@ export default function Home() {
                 Comenzar Gratis
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link 
-                href="/demo" 
-                className="inline-flex items-center px-8 py-4 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold text-lg border border-gray-200 shadow-lg"
-              >
-                Ver Demo
-              </Link>
             </div>
             
             {/* Stats */}
