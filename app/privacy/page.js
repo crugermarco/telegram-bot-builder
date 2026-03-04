@@ -424,7 +424,7 @@ export default function PrivacyPage() {
                     </p>
                     <p className="flex items-center">
                       <Info className="w-5 h-5 text-blue-600 mr-3" />
-                      <span className="text-slate-700">123 Tech Street, San Francisco, CA 94105</span>
+                      <span className="text-slate-700">wunderbar mexico</span>
                     </p>
                   </div>
                 </div>
