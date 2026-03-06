@@ -4,14 +4,15 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import { 
   isBotActive, 
-  stopAndRemoveBot
+  stopAndRemoveBot,
+  getActiveBot
 } from "@/lib/telegram/activeBots";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Variable para controlar si ya estamos procesando
+// Variable para controlar procesos simultáneos
 const processingBots = new Map();
 
 export async function POST(request, { params }) {
@@ -34,7 +35,7 @@ export async function POST(request, { params }) {
     const userId = decoded.userId;
     const botId = params.botId;
 
-    console.log(`🛑 Intentando detener bot ${botId}...`);
+    console.log(`🛑 Deteniendo bot ${botId} (webhook)...`);
 
     // Evitar múltiples detenciones simultáneas
     if (processingBots.has(botId)) {
@@ -47,7 +48,7 @@ export async function POST(request, { params }) {
     }
     processingBots.set(botId, true);
 
-    // ========== 2. VERIFICAR QUE EL BOT EXISTE Y PERTENECE AL USUARIO ==========
+    // ========== 2. VERIFICAR QUE EL BOT EXISTE ==========
     const { data: bot, error: botError } = await supabase
       .from('bots')
       .select('*')
@@ -63,38 +64,77 @@ export async function POST(request, { params }) {
       );
     }
 
-    // ========== 3. DETENER INSTANCIA DEL BOT SI EXISTE ==========
-    let stopped = false;
-    if (isBotActive(botId)) {
-      console.log(`⚠️ Deteniendo instancia en memoria...`);
-      stopped = await stopAndRemoveBot(botId);
-      console.log(`✅ Bot detenido: ${stopped}`);
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Esperar 2 segundos
-    } else {
-      console.log(`ℹ️ No hay instancia en memoria para detener`);
-    }
-
-    // ========== 4. LIMPIEZA EN TELEGRAM ==========
+    // ========== 3. ELIMINAR WEBHOOK EN TELEGRAM ==========
+    let webhookEliminado = false;
     try {
-      await axios.get(
+      console.log(`🌐 Eliminando webhook en Telegram...`);
+      
+      // Obtener información del webhook antes de eliminar
+      const webhookInfo = await axios.get(
+        `https://api.telegram.org/bot${bot.token}/getWebhookInfo`
+      );
+      console.log(`📊 Webhook actual:`, webhookInfo.data.result?.url || 'No configurado');
+      
+      // Eliminar webhook
+      const deleteResponse = await axios.get(
         `https://api.telegram.org/bot${bot.token}/deleteWebhook?drop_pending_updates=true`
       );
-      console.log(`✅ Webhook eliminado en Telegram`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (deleteResponse.data.ok) {
+        console.log(`✅ Webhook eliminado exitosamente`);
+        webhookEliminado = true;
+      } else {
+        console.log(`⚠️ Error eliminando webhook:`, deleteResponse.data.description);
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Verificar que se eliminó
+      const verifyDelete = await axios.get(
+        `https://api.telegram.org/bot${bot.token}/getWebhookInfo`
+      );
+      console.log(`📊 Verificación post-eliminación:`, {
+        url: verifyDelete.data.result?.url || 'Eliminado'
+      });
+      
     } catch (e) {
-      console.log(`⚠️ Error limpiando webhook:`, e.message);
+      console.log(`⚠️ Error en limpieza de webhook:`, e.message);
+    }
+
+    // ========== 4. DETENER INSTANCIA EN MEMORIA ==========
+    let stopped = false;
+    if (isBotActive(botId)) {
+      console.log(`⚠️ Eliminando instancia de memoria...`);
+      
+      // Obtener el servicio antes de eliminarlo
+      const botService = getActiveBot(botId);
+      
+      // Llamar al método stop del servicio si existe
+      if (botService && botService.stop) {
+        try {
+          await botService.stop();
+        } catch (e) {
+          console.log(`Error llamando stop():`, e.message);
+        }
+      }
+      
+      stopped = await stopAndRemoveBot(botId);
+      console.log(`✅ Bot eliminado de memoria: ${stopped}`);
+    } else {
+      console.log(`ℹ️ No hay instancia en memoria para eliminar`);
     }
 
     // ========== 5. ACTUALIZAR ESTADO EN BASE DE DATOS ==========
-    console.log(`📝 ACTUALIZANDO ESTADO EN BD a 'inactive'...`);
+    console.log(`📝 Actualizando estado en BD a 'inactive'...`);
     
-    const { error: updateError } = await supabase
+    const { error: updateError, data: updatedData } = await supabase
       .from('bots')
       .update({ 
         status: 'inactive', 
         updated_at: new Date().toISOString()
       })
-      .eq('id', botId);
+      .eq('id', botId)
+      .select();
 
     if (updateError) {
       console.error("❌ Error actualizando estado:", updateError);
@@ -102,25 +142,38 @@ export async function POST(request, { params }) {
       throw updateError;
     }
 
-    console.log(`✅ Estado actualizado a 'inactive'`);
+    console.log(`✅ Estado actualizado:`, updatedData);
 
-    // ========== 6. VERIFICAR QUE EL ESTADO SE ACTUALIZÓ ==========
-    const { data: verifyBot } = await supabase
-      .from('bots')
-      .select('status')
-      .eq('id', botId)
-      .single();
-
-    console.log(`🔍 VERIFICACIÓN - Estado en BD: ${verifyBot?.status}`);
+    // ========== 6. VERIFICACIÓN FINAL ==========
+    console.log(`🔍 Verificando estado final...`);
     
+    try {
+      const finalCheck = await axios.get(
+        `https://api.telegram.org/bot${bot.token}/getWebhookInfo`
+      );
+      
+      if (finalCheck.data.result?.url) {
+        console.log(`⚠️ Webhook aún presente: ${finalCheck.data.result.url}`);
+      } else {
+        console.log(`✅ Webhook confirmado como eliminado`);
+      }
+    } catch (e) {
+      console.log(`✅ No se pudo verificar, asumimos limpio`);
+    }
+
     processingBots.delete(botId);
 
     // ========== 7. RESPONDER CON ÉXITO ==========
+    const mensajeFinal = webhookEliminado 
+      ? "✅ Bot detenido y webhook eliminado"
+      : "⚠️ Bot detenido pero puede requerir limpieza manual";
+
     return NextResponse.json({
       success: true,
-      message: stopped ? "✅ Bot detenido correctamente" : "✅ Estado actualizado a inactivo",
+      message: mensajeFinal,
       botId: bot.id,
-      status: 'inactive'
+      status: 'inactive',
+      webhookEliminado
     });
 
   } catch (error) {
@@ -128,6 +181,12 @@ export async function POST(request, { params }) {
     
     if (params?.botId) {
       processingBots.delete(params.botId);
+      
+      // Intentar actualizar BD a inactive aunque falle
+      await supabase
+        .from('bots')
+        .update({ status: 'inactive' })
+        .eq('id', params.botId);
     }
     
     if (error.name === 'JsonWebTokenError') {
