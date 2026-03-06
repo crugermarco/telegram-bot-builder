@@ -68,7 +68,7 @@ export async function POST(request, { params }) {
         throw new Error("NEXT_PUBLIC_APP_URL no configurada");
       }
 
-      const webhookUrl = `${baseUrl}/api/bots/(normal)/${botId}/webhook`;
+      const webhookUrl = `${baseUrl}/api/bots/${botId}/webhook`;
       console.log(`📌 Configurando webhook: ${webhookUrl}`);
 
       // 1. Primero eliminar cualquier webhook existente
