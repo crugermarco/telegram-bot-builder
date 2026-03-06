@@ -9,6 +9,13 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // 🆕 PERMITIR WEBHOOKS DE TELEGRAM (SIN AUTENTICACIÓN)
+  // Los webhooks de Telegram necesitan ser públicos
+  if (path.includes('/api/bots/') && path.includes('/webhook')) {
+    console.log(`🔓 Webhook público accesible: ${path}`);
+    return NextResponse.next();
+  }
+
   // PERMITIR SIEMPRE PÁGINAS PÚBLICAS
   const isPublicPath = path === "/" || 
                       path === "/login" || 
@@ -22,6 +29,7 @@ export async function middleware(request) {
   const token = request.cookies.get("token")?.value;
   
   if (!token) {
+    console.log(`⚠️ Acceso no autorizado a ruta protegida: ${path}`);
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -32,6 +40,7 @@ export async function middleware(request) {
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch (error) {
+    console.log(`❌ Token inválido o expirado: ${path}`);
     // Token inválido o expirado - ELIMINAR COOKIE
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("token");
@@ -42,6 +51,6 @@ export async function middleware(request) {
 export const config = {
   matcher: [
     '/dashboard/:path*',  // SOLO PROTEGE EL DASHBOARD
-    '/api/:path*'         // APIs (excepto auth)
+    '/api/:path*'         // APIs (excepto auth y webhooks)
   ]
 };
