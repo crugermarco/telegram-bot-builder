@@ -218,12 +218,16 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       break;
       
     case "googlesheets":
-      await sendTelegramMessage(chatId, "📊 Guardando datos en Google Sheets...", botToken);
+      console.log(`📊 INTENTANDO guardar en Google Sheets...`);
+      console.log(`📊 Datos del nodo:`, JSON.stringify(currentNode.data, null, 2));
       
+      const session = conversationState.get(userId);
+      await callGoogleSheets(chatId, currentNode.data, userId, botToken, session?.variables);
+      
+      // Avanzar al siguiente nodo
       const nextEdgeAfterSheet = edges.find(edge => edge.source === currentNode.id);
       if (nextEdgeAfterSheet) {
         state.currentNodeId = nextEdgeAfterSheet.target;
-        
         const nextNode = nodes.find(node => node.id === nextEdgeAfterSheet.target);
         if (nextNode) {
           await processNode(chatId, userId, nextNode, nodes, edges, botToken, state);
@@ -233,6 +237,52 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       
     default:
       await sendTelegramMessage(chatId, "Tipo de nodo no soportado", botToken);
+  }
+}
+
+// ========== NUEVA FUNCIÓN PARA GOOGLE SHEETS ==========
+async function callGoogleSheets(chatId, data, userId, botToken, variables) {
+  const { appsScriptUrl, sheetName = 'Hoja1' } = data;
+  
+  try {
+    if (!appsScriptUrl) {
+      console.error(`❌ Google Sheets: URL del Web App no configurada`);
+      await sendTelegramMessage(chatId, "❌ Google Sheets: URL no configurada", botToken);
+      return;
+    }
+
+    console.log(`📊 Enviando a Google Sheets: ${appsScriptUrl}`);
+    console.log(`📊 Variables disponibles:`, JSON.stringify(variables, null, 2));
+    
+    // Preparar payload con todas las variables
+    const payload = {
+      ...variables,
+      timestamp: new Date().toISOString(),
+      user_id: userId,
+      sheet_name: sheetName
+    };
+    
+    console.log(`📊 Payload enviado:`, JSON.stringify(payload, null, 2));
+
+    // Enviar a Google Sheets
+    const response = await fetch(appsScriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    console.log(`📊 Respuesta de Google Sheets:`, result);
+
+    if (result.success) {
+      await sendTelegramMessage(chatId, `✅ Datos guardados correctamente en ${sheetName}`, botToken);
+    } else {
+      throw new Error(result.error || 'Error desconocido');
+    }
+
+  } catch (error) {
+    console.error(`❌ Error en Google Sheets:`, error.message);
+    await sendTelegramMessage(chatId, `❌ Error al guardar: ${error.message}`, botToken);
   }
 }
 
