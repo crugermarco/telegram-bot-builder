@@ -48,7 +48,8 @@ import {
   Moon,
   Sun,
   Trash,
-  AlertTriangle
+  AlertTriangle,
+  Image
 } from "lucide-react";
 
 const AVAILABLE_VARIABLES = [
@@ -126,6 +127,447 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
           />
           Simular escritura
         </label>
+      </div>
+    </div>
+  );
+};
+
+// ========== NUEVO NODO: IMAGEN + TEXTO ==========
+const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
+  const [showEditor, setShowEditor] = useState(false);
+  const [imageUrl, setImageUrl] = useState(data.imageUrl || "");
+  const [caption, setCaption] = useState(data.caption || "");
+
+  const handleSave = () => {
+    onUpdate?.({ imageUrl, caption });
+    setShowEditor(false);
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (window.confirm("¿Eliminar este nodo?")) {
+      onUpdate?.({ __delete: true });
+    }
+  };
+
+  const handleImagePreview = (url) => {
+    if (url && (url.startsWith('http') || url.startsWith('https'))) {
+      window.open(url, '_blank');
+    }
+  };
+
+  return (
+    <div className={`px-4 py-3 shadow-xl rounded-xl backdrop-blur-sm border-2 border-pink-500 min-w-[350px] group hover:shadow-2xl transition-all duration-300 ${darkMode ? 'bg-gray-800/90 text-white' : 'bg-white/90'}`}>
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-pink-500" />
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-pink-500" />
+      
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center">
+          <div className={`p-1.5 rounded-lg mr-2 ${darkMode ? 'bg-pink-900/30' : 'bg-gradient-to-br from-pink-50 to-pink-100'}`}>
+            <Image className={`w-5 h-5 ${darkMode ? 'text-pink-400' : 'text-pink-600'}`} />
+          </div>
+          <span className={`font-semibold ${darkMode ? 'text-pink-400' : 'text-pink-700'}`}>Imagen + Texto</span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => setShowEditor(true)}
+            className={`p-1.5 rounded-lg transition ${darkMode ? 'hover:bg-pink-900/30' : 'hover:bg-pink-100'}`}
+          >
+            <Edit className={`w-4 h-4 ${darkMode ? 'text-pink-400' : 'text-pink-600'}`} />
+          </button>
+          <button
+            onClick={handleDelete}
+            className={`p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded-lg transition ${darkMode ? 'hover:bg-red-900/30' : ''}`}
+          >
+            <Trash2 className={`w-4 h-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
+          </button>
+        </div>
+      </div>
+
+      {!showEditor ? (
+        <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          {imageUrl ? (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>URL de imagen:</span>
+                <button
+                  onClick={() => handleImagePreview(imageUrl)}
+                  className={`text-xs px-2 py-1 rounded ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}
+                >
+                  Ver imagen
+                </button>
+              </div>
+              <div className={`text-xs truncate p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-white border border-gray-200'}`}>
+                {imageUrl}
+              </div>
+            </div>
+          ) : (
+            <div className={`mb-3 text-center py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              Sin imagen configurada
+            </div>
+          )}
+          
+          {caption ? (
+            <div>
+              <span className={`text-xs font-medium block mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Texto:</span>
+              <div className={`text-sm p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-white border border-gray-200'}`}>
+                {caption}
+              </div>
+            </div>
+          ) : (
+            <div className={`text-center py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              Sin texto
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className={`p-3 rounded-lg space-y-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          <div className={`flex items-center justify-between sticky top-0 py-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+            <span className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>EDITAR IMAGEN + TEXTO</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEditor(false);
+              }}
+              className={`p-1 rounded-lg ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
+            >
+              <X className={`w-3 h-3 ${darkMode ? 'text-gray-300' : ''}`} />
+            </button>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              URL de la imagen <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://ejemplo.com/imagen.jpg"
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-pink-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              URL pública de la imagen (JPG, PNG, GIF)
+            </p>
+            {imageUrl && (
+              <button
+                onClick={() => handleImagePreview(imageUrl)}
+                className={`mt-2 text-xs px-3 py-1.5 rounded-lg flex items-center ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}
+              >
+                <Image className="w-3 h-3 mr-1" />
+                Probar URL
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Texto de la imagen (opcional)
+            </label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              rows="3"
+              placeholder="Texto que acompañará a la imagen..."
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-pink-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Puedes usar variables como {{nombre}}, {{fecha}}, etc.
+            </p>
+          </div>
+
+          <div className={`p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
+            <p className={`text-xs ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+              <strong>NOTA:</strong> La imagen debe ser accesible públicamente. Telegram muestra imágenes de hasta 10MB.
+            </p>
+          </div>
+
+          <button
+            onClick={handleSave}
+            className="w-full mt-2 px-4 py-2 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 flex items-center justify-center font-medium"
+          >
+            <Save className="w-4 h-4 mr-1" />
+            Guardar nodo
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ========== NODO: IMAGEN + TEXTO + BOTONES (CORREGIDO) ==========
+const ImageButtonsNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
+  const [showEditor, setShowEditor] = useState(false);
+  const [imageUrl, setImageUrl] = useState(data.imageUrl || "");
+  const [caption, setCaption] = useState(data.caption || "Selecciona una opción:");
+  const [options, setOptions] = useState(data.options || ["Sí", "No"]);
+
+  const addOption = () => {
+    const newOptions = [...options, `Opción ${options.length + 1}`];
+    setOptions(newOptions);
+    onUpdate?.({ imageUrl, caption, options: newOptions });
+  };
+
+  const updateOption = (index, value) => {
+    const newOptions = [...options];
+    newOptions[index] = value;
+    setOptions(newOptions);
+    onUpdate?.({ imageUrl, caption, options: newOptions });
+  };
+
+  const removeOption = (index) => {
+    const newOptions = options.filter((_, i) => i !== index);
+    setOptions(newOptions);
+    onUpdate?.({ imageUrl, caption, options: newOptions });
+  };
+
+  const handleSave = () => {
+    onUpdate?.({ imageUrl, caption, options });
+    setShowEditor(false);
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (window.confirm("¿Eliminar este nodo?")) {
+      onUpdate?.({ __delete: true });
+    }
+  };
+
+  const handleImagePreview = (url) => {
+    if (url && (url.startsWith('http') || url.startsWith('https'))) {
+      window.open(url, '_blank');
+    }
+  };
+
+  const renderSourceHandles = () => {
+    if (options.length === 0) {
+      return (
+        <Handle 
+          type="source" 
+          position={Position.Bottom} 
+          isConnectable={isConnectable} 
+          className="w-3 h-3 bg-purple-500" 
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        />
+      );
+    }
+
+    return options.map((option, index) => {
+      const leftPosition = ((index + 1) / (options.length + 1)) * 100;
+      return (
+        <div key={`handle-${index}`} className="relative">
+          <Handle
+            type="source"
+            id={`opt${index}`}
+            position={Position.Bottom}
+            isConnectable={isConnectable}
+            className="w-3 h-3 bg-purple-500 hover:scale-150 transition-transform"
+            style={{ left: `${leftPosition}%`, bottom: '-8px' }}
+          />
+          <div 
+            className={`absolute text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded-full border ${darkMode ? 'bg-purple-900/50 text-purple-300 border-purple-700' : 'bg-purple-50 text-purple-700 border-purple-200'}`}
+            style={{ 
+              left: `${leftPosition}%`, 
+              bottom: '-24px', 
+              transform: 'translateX(-50%)' 
+            }}
+          >
+            {option}
+          </div>
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className={`px-4 py-3 shadow-xl rounded-xl backdrop-blur-sm border-2 border-purple-500 min-w-[380px] group hover:shadow-2xl transition-all duration-300 ${darkMode ? 'bg-gray-800/90 text-white' : 'bg-white/90'}`}>
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
+      
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center">
+          <div className={`p-1.5 rounded-lg mr-2 ${darkMode ? 'bg-purple-900/30' : 'bg-gradient-to-br from-purple-50 to-purple-100'}`}>
+            <Image className={`w-5 h-5 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+          </div>
+          <span className={`font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>Imagen + Botones</span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEditor(!showEditor);
+            }}
+            className={`p-1.5 rounded-lg transition ${darkMode ? 'hover:bg-purple-900/30' : 'hover:bg-purple-100'}`}
+          >
+            <Edit className={`w-4 h-4 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+          </button>
+          <button
+            onClick={handleDelete}
+            className={`p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded-lg transition ${darkMode ? 'hover:bg-red-900/30' : ''}`}
+          >
+            <Trash2 className={`w-4 h-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
+          </button>
+        </div>
+      </div>
+
+      {!showEditor ? (
+        <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          {imageUrl ? (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Imagen:</span>
+                <button
+                  onClick={() => handleImagePreview(imageUrl)}
+                  className={`text-xs px-2 py-1 rounded ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}
+                >
+                  Ver imagen
+                </button>
+              </div>
+              <div className={`text-xs truncate p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-white border border-gray-200'}`}>
+                {imageUrl}
+              </div>
+            </div>
+          ) : (
+            <div className={`mb-3 text-center py-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              Sin imagen configurada
+            </div>
+          )}
+          
+          <div className={`mb-3 font-medium border-b pb-2 ${darkMode ? 'text-gray-200 border-gray-600' : 'text-gray-800'}`}>
+            <span className={`text-xs uppercase tracking-wider block mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Texto:</span>
+            {caption}
+          </div>
+          
+          <div className="space-y-2">
+            <span className={`text-xs uppercase tracking-wider block mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Opciones:</span>
+            {options.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {options.map((opt, i) => (
+                  <div key={i} className={`px-3 py-2 rounded-lg border shadow-sm ${darkMode ? 'bg-gray-800 border-purple-800 text-gray-200' : 'bg-white border-purple-200'}`}>
+                    <span className="font-medium text-sm">{opt}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-3">
+                <span className={`italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Sin opciones</span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className={`p-3 rounded-lg space-y-4 max-h-96 overflow-y-auto ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          <div className={`flex items-center justify-between sticky top-0 py-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+            <span className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>EDITAR IMAGEN + BOTONES</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEditor(false);
+              }}
+              className={`p-1 rounded-lg ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
+            >
+              <X className={`w-3 h-3 ${darkMode ? 'text-gray-300' : ''}`} />
+            </button>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              URL de la imagen <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://ejemplo.com/imagen.jpg"
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              URL pública de la imagen
+            </p>
+            {imageUrl && (
+              <button
+                onClick={() => handleImagePreview(imageUrl)}
+                className={`mt-2 text-xs px-3 py-1.5 rounded-lg flex items-center ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}
+              >
+                <Image className="w-3 h-3 mr-1" />
+                Probar URL
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Texto de la imagen
+            </label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              rows="2"
+              placeholder="Texto que acompañará a la imagen..."
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className={`block text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Opciones de botones
+              </label>
+              <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {options.length} configuradas
+              </span>
+            </div>
+            
+            {options.map((opt, idx) => (
+              <div key={idx} className={`p-3 rounded-lg border space-y-2 mb-2 shadow-sm ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Botón #{idx + 1}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeOption(idx);
+                    }}
+                    className={`p-1 rounded ${darkMode ? 'text-red-400 hover:bg-red-900/30' : 'text-red-600 hover:bg-red-50'}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={opt}
+                  onChange={(e) => updateOption(idx, e.target.value)}
+                  placeholder="Texto del botón"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : ''}`}
+                />
+              </div>
+            ))}
+            
+            <button
+              onClick={addOption}
+              className="w-full mt-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 flex items-center justify-center"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Agregar Botón
+            </button>
+          </div>
+
+          <div className={`p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
+            <p className={`text-xs ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+              <strong>NOTA:</strong> El texto del botón ES el valor que se envía. La condición compara directamente con este texto.
+            </p>
+          </div>
+
+          <button
+            onClick={handleSave}
+            className="w-full mt-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 flex items-center justify-center font-medium"
+          >
+            <Save className="w-4 h-4 mr-1" />
+            Guardar nodo
+          </button>
+        </div>
+      )}
+      
+      <div className="relative h-8 mt-2">
+        {renderSourceHandles()}
       </div>
     </div>
   );
@@ -1608,6 +2050,20 @@ function BotBuilder() {
         onUpdate={(newData) => updateNodeData(props.id, newData)} 
         darkMode={darkMode}
       />
+    ),
+    imagetext: (props) => (
+      <ImageTextNode 
+        {...props} 
+        onUpdate={(newData) => updateNodeData(props.id, newData)} 
+        darkMode={darkMode}
+      />
+    ),
+    imagebuttons: (props) => (
+      <ImageButtonsNode 
+        {...props} 
+        onUpdate={(newData) => updateNodeData(props.id, newData)} 
+        darkMode={darkMode}
+      />
     )
   }), [darkMode]);
 
@@ -1840,6 +2296,15 @@ function BotBuilder() {
               pregunta: "¿Cuál es tu nombre?",
               variableGuardar: "nombre",
               mensajeConfirmacion: "¡Gracias {{nombre}}! Tu respuesta ha sido guardada."
+            } :
+            type === "imagetext" ? {
+              imageUrl: "",
+              caption: ""
+            } :
+            type === "imagebuttons" ? {
+              imageUrl: "",
+              caption: "Selecciona una opción:",
+              options: ["Sí", "No"]
             } : {}
     };
     
@@ -2009,6 +2474,16 @@ function BotBuilder() {
                     className={`w-full flex items-center p-3 rounded-xl transition-all ${darkMode ? 'bg-green-900/30 hover:bg-green-900/50' : 'bg-green-50 hover:bg-green-100'}`}>
               <CheckCircle className={`w-5 h-5 mr-3 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
               <span className={`font-medium ${darkMode ? 'text-green-400' : 'text-green-700'}`}>Botones</span>
+            </button>
+            <button onClick={() => addNode("imagetext")}
+                    className={`w-full flex items-center p-3 rounded-xl transition-all ${darkMode ? 'bg-pink-900/30 hover:bg-pink-900/50' : 'bg-pink-50 hover:bg-pink-100'}`}>
+              <Image className={`w-5 h-5 mr-3 ${darkMode ? 'text-pink-400' : 'text-pink-600'}`} />
+              <span className={`font-medium ${darkMode ? 'text-pink-400' : 'text-pink-700'}`}>Imagen + Texto</span>
+            </button>
+            <button onClick={() => addNode("imagebuttons")}
+                    className={`w-full flex items-center p-3 rounded-xl transition-all ${darkMode ? 'bg-purple-900/30 hover:bg-purple-900/50' : 'bg-purple-50 hover:bg-purple-100'}`}>
+              <Image className={`w-5 h-5 mr-3 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+              <span className={`font-medium ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>Imagen + Botones</span>
             </button>
             <button onClick={() => addNode("condition")}
                     className={`w-full flex items-center p-3 rounded-xl transition-all ${darkMode ? 'bg-yellow-900/30 hover:bg-yellow-900/50' : 'bg-yellow-50 hover:bg-yellow-100'}`}>

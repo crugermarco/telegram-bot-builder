@@ -275,6 +275,92 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       }
       break;
       
+    // ========== NUEVO NODO: IMAGEN + TEXTO ==========
+    case "imagetext":
+      // Enviar imagen con texto
+      const imageUrl = currentNode.data.imageUrl;
+      const caption = replaceVariables(currentNode.data.caption || "", state.variables);
+      
+      if (imageUrl) {
+        console.log(`🖼️ Enviando imagen: ${imageUrl}`);
+        await sendTelegramPhoto(chatId, imageUrl, caption, botToken);
+      } else {
+        await sendTelegramMessage(chatId, caption || "Imagen no disponible", botToken);
+      }
+      
+      // Avanzar al siguiente nodo
+      const nextEdgeImage = edges.find(edge => edge.source === currentNode.id);
+      if (nextEdgeImage) {
+        state.currentNodeId = nextEdgeImage.target;
+        state.waitingFor = null;
+        
+        const nextNode = nodes.find(node => node.id === nextEdgeImage.target);
+        if (nextNode) {
+          await processNode(chatId, userId, nextNode, nodes, edges, botToken, state);
+        }
+      }
+      break;
+      
+    // ========== NUEVO NODO: IMAGEN + TEXTO + BOTONES ==========
+    case "imagebuttons":
+      if (state.waitingFor === "button_response") {
+        // Usuario seleccionó una opción
+        const selectedOption = userMessage;
+        const optionIndex = currentNode.data.options.findIndex(opt => opt === selectedOption);
+        
+        if (optionIndex !== -1) {
+          // Guardar variables de respuesta
+          state.variables.respuesta = selectedOption;
+          state.variables.ultimo_mensaje = selectedOption;
+          console.log(`📦 Variables guardadas: respuesta = ${selectedOption}`);
+          
+          await sendTelegramMessage(chatId, `Seleccionaste: ${selectedOption}`, botToken);
+          
+          // Buscar conexión específica
+          const nextEdgeForOption = edges.find(edge => 
+            edge.source === currentNode.id && edge.sourceHandle === `opt${optionIndex}`
+          );
+          
+          if (nextEdgeForOption) {
+            state.currentNodeId = nextEdgeForOption.target;
+            state.waitingFor = null;
+            
+            const nextNode = nodes.find(node => node.id === nextEdgeForOption.target);
+            if (nextNode) {
+              await processNode(chatId, userId, nextNode, nodes, edges, botToken, state);
+            }
+          }
+        } else {
+          await sendTelegramMessage(chatId, "Opción no válida. Elige una de las opciones:", botToken);
+        }
+      } else {
+        // PRIMERO: Enviar la imagen con texto
+        const imageUrl = currentNode.data.imageUrl;
+        const caption = replaceVariables(currentNode.data.caption || "Selecciona una opción:", state.variables);
+        
+        if (imageUrl) {
+          console.log(`🖼️ Enviando imagen con botones: ${imageUrl}`);
+          await sendTelegramPhoto(chatId, imageUrl, caption, botToken);
+        } else {
+          await sendTelegramMessage(chatId, caption, botToken);
+        }
+        
+        // SEGUNDO: Crear teclado con las opciones
+        const keyboard = {
+          reply_markup: {
+            keyboard: currentNode.data.options.map(opt => [opt]),
+            one_time_keyboard: true,
+            resize_keyboard: true
+          }
+        };
+        
+        // Enviar opciones como botones
+        await sendTelegramMessage(chatId, "Elige una opción:", botToken, keyboard);
+        
+        state.waitingFor = "button_response";
+      }
+      break;
+      
     default:
       await sendTelegramMessage(chatId, "Tipo de nodo no soportado", botToken);
   }
@@ -338,6 +424,47 @@ function replaceVariables(text, variables = {}) {
   });
   
   return result;
+}
+
+// ========== FUNCIÓN PARA ENVIAR FOTOS ==========
+async function sendTelegramPhoto(chatId, photoUrl, caption, botToken) {
+  try {
+    console.log(`📸 Enviando foto a ${chatId}: ${photoUrl.substring(0, 50)}...`);
+    
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: photoUrl,
+        caption: caption || ""
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error("❌ Error enviando foto:", result);
+      
+      // Fallback a mensaje de texto si la imagen falla
+      if (caption) {
+        await sendTelegramMessage(chatId, `[Imagen no disponible]\n\n${caption}`, botToken);
+      } else {
+        await sendTelegramMessage(chatId, "Imagen no disponible", botToken);
+      }
+    } else {
+      console.log("✅ Foto enviada correctamente");
+    }
+  } catch (error) {
+    console.error("❌ Error en sendTelegramPhoto:", error);
+    
+    // Fallback a mensaje de texto
+    if (caption) {
+      await sendTelegramMessage(chatId, `[Error al enviar imagen]\n\n${caption}`, botToken);
+    } else {
+      await sendTelegramMessage(chatId, "Error al enviar imagen", botToken);
+    }
+  }
 }
 
 async function sendTelegramMessage(chatId, text, botToken, extra = {}) {
