@@ -132,7 +132,7 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   );
 };
 
-// ========== NUEVO NODO: IMAGEN + TEXTO ==========
+// ========== NODO: IMAGEN + TEXTO (CORREGIDO) ==========
 const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [imageUrl, setImageUrl] = useState(data.imageUrl || "");
