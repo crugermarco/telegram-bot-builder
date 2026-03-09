@@ -132,29 +132,39 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   );
 };
 
-// ========== NODO: IMAGEN + TEXTO (CORREGIDO) ==========
+// ========== NODO: IMAGEN + TEXTO (VERSIÓN CORREGIDA) ==========
 const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [imageUrl, setImageUrl] = useState(data.imageUrl || "");
   const [caption, setCaption] = useState(data.caption || "");
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     onUpdate?.({ imageUrl, caption });
     setShowEditor(false);
-  };
+  }, [imageUrl, caption, onUpdate]);
 
-  const handleDelete = (e) => {
+  const handleDelete = useCallback((e) => {
     e.stopPropagation();
     if (window.confirm("¿Eliminar este nodo?")) {
       onUpdate?.({ __delete: true });
     }
-  };
+  }, [onUpdate]);
 
-  const handleImagePreview = (url) => {
+  const handleImagePreview = useCallback((url) => {
     if (url && (url.startsWith('http') || url.startsWith('https'))) {
       window.open(url, '_blank');
     }
-  };
+  }, []);
+
+  const handleCloseEditor = useCallback((e) => {
+    e.stopPropagation();
+    setShowEditor(false);
+  }, []);
+
+  // Verificación de datos para depuración
+  useEffect(() => {
+    console.log(`🖼️ ImageTextNode montado con data:`, data);
+  }, [data]);
 
   return (
     <div className={`px-4 py-3 shadow-xl rounded-xl backdrop-blur-sm border-2 border-pink-500 min-w-[350px] group hover:shadow-2xl transition-all duration-300 ${darkMode ? 'bg-gray-800/90 text-white' : 'bg-white/90'}`}>
@@ -225,10 +235,7 @@ const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
           <div className={`flex items-center justify-between sticky top-0 py-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
             <span className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>EDITAR IMAGEN + TEXTO</span>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowEditor(false);
-              }}
+              onClick={handleCloseEditor}
               className={`p-1 rounded-lg ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
             >
               <X className={`w-3 h-3 ${darkMode ? 'text-gray-300' : ''}`} />
@@ -272,7 +279,7 @@ const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
               className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-pink-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
             />
             <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Puedes usar variables como {{nombre}}, {{fecha}}, etc.
+              Puedes usar variables como {`{{nombre}}`}, {`{{fecha}}`}, etc.
             </p>
           </div>
 
