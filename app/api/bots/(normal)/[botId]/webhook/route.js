@@ -6,6 +6,10 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const conversationState = new Map();
+// ========== NUEVO: Caché para Gemini ==========
+const geminiCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hora en milisegundos
+const requestTracker = new Map(); // Para tracking de solicitudes duplicadas
 
 export async function POST(request, { params }) {
   try {
@@ -58,7 +62,11 @@ async function processMessage(chatId, userId, text, nodes, edges, botToken, user
         id: user.id.toString(),
         fecha: new Date().toLocaleDateString('es-ES'),
         hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      }
+      },
+      // ========== NUEVO: Tracking de mensajes procesados ==========
+      lastProcessedMessage: null,
+      lastProcessedNode: null,
+      lastProcessedTime: null
     };
     
     let currentNode = null;
@@ -94,7 +102,8 @@ async function processMessage(chatId, userId, text, nodes, edges, botToken, user
   }
 }
 
-async function callGeminiAI(personality, knowledge, userMessage, variables) {
+// ========== FUNCIÓN GEMINI CON CACHÉ MEJORADA ==========
+async function callGeminiAI(personality, knowledge, userMessage, variables, currentNode) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     
@@ -105,6 +114,23 @@ async function callGeminiAI(personality, knowledge, userMessage, variables) {
         intent: "default"
       };
     }
+
+    // Crear una clave única para esta solicitud
+    const cacheKey = `${personality.substring(0, 100)}-${knowledge.substring(0, 100)}-${userMessage}-${JSON.stringify(variables)}`;
+    
+    // Verificar si ya tenemos esta respuesta en caché
+    if (geminiCache.has(cacheKey)) {
+      const cached = geminiCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < CACHE_TTL) {
+        console.log(`🔄 Usando respuesta en caché para: "${userMessage.substring(0, 30)}..."`);
+        return cached.data;
+      } else {
+        geminiCache.delete(cacheKey);
+      }
+    }
+
+    // Obtener las intenciones del nodo actual para pasarlas a Gemini
+    const intentsList = currentNode?.data?.intents?.join(', ') || 'Ventas, Soporte, Saludo, Despedida, Reclamo, default';
 
     const prompt = `
 ${personality}
@@ -121,7 +147,7 @@ Analiza el mensaje del usuario y responde de manera natural y útil basándote e
 
 IMPORTANTE: Tu respuesta DEBE ser un objeto JSON con dos campos:
 1. "response": tu respuesta al usuario (texto natural)
-2. "intent": la intención detectada (una de las siguientes: Ventas, Soporte, Saludo, Despedida, Reclamo, default)
+2. "intent": la intención detectada (una de las siguientes: ${intentsList})
 
 Ejemplo de formato de respuesta:
 {
@@ -158,36 +184,57 @@ Responde SOLO con el objeto JSON, sin texto adicional.
     
     if (!response.ok) {
       console.error("❌ Error de Gemini API:", data);
+      
+      // ========== MANEJO ESPECÍFICO DE ERROR DE CUOTA ==========
+      if (data.error?.message?.includes('Quota exceeded') || data.error?.message?.includes('quota')) {
+        console.warn("⚠️ Cuota de Gemini excedida. Usando respuesta de respaldo.");
+        return {
+          response: "Lo siento, el servicio de IA está muy solicitado en este momento. Por favor, intenta de nuevo en unos minutos.",
+          intent: "default"
+        };
+      }
+      
       throw new Error(data.error?.message || 'Error desconocido');
     }
 
     const aiText = data.candidates[0].content.parts[0].text;
     console.log(`🤖 Respuesta de Gemini:`, aiText);
 
+    let result;
     try {
       const jsonMatch = aiText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        return {
+        result = JSON.parse(jsonMatch[0]);
+        result = {
           response: result.response || "No pude procesar tu mensaje.",
           intent: result.intent || "default"
         };
       } else {
-        return {
+        result = {
           response: aiText,
           intent: "default"
         };
       }
     } catch (parseError) {
       console.error("❌ Error parseando respuesta de Gemini:", parseError);
-      return {
+      result = {
         response: aiText,
         intent: "default"
       };
     }
+    
+    // Guardar en caché
+    geminiCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: result
+    });
+    
+    return result;
 
   } catch (error) {
     console.error("❌ Error en callGeminiAI:", error);
+    
+    // Respuesta de fallback amigable
     return {
       response: "Lo siento, tuve un problema al procesar tu mensaje. Por favor intenta de nuevo.",
       intent: "default"
@@ -423,8 +470,28 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       }
       break;
       
+    // ========== NODO AI CON PROTECCIÓN DE DUPLICADOS ==========
     case "ai":
       console.log(`🤖 Procesando nodo AI...`);
+      
+      // ========== DETECCIÓN DE MENSAJES DUPLICADOS ==========
+      // Evitar procesar el mismo mensaje múltiples veces en el mismo nodo
+      const requestKey = `${userId}-${currentNode.id}-${userMessage}`;
+      const now = Date.now();
+      
+      if (state.lastProcessedMessage === userMessage && 
+          state.lastProcessedNode === currentNode.id &&
+          state.lastProcessedTime && 
+          (now - state.lastProcessedTime) < 5000) { // 5 segundos de ventana
+        console.log(`⏭️ Mensaje duplicado detectado, ignorando para evitar llamada extra a Gemini`);
+        return;
+      }
+      
+      // Actualizar el tracking
+      state.lastProcessedMessage = userMessage;
+      state.lastProcessedNode = currentNode.id;
+      state.lastProcessedTime = now;
+      
       console.log(`🤖 Personalidad:`, currentNode.data.personality);
       console.log(`🤖 Conocimiento:`, currentNode.data.knowledge);
       console.log(`🤖 Intenciones:`, currentNode.data.intents);
@@ -434,11 +501,13 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
         state.waitingFor = null;
       }
       
+      // Pasar currentNode a la función para obtener las intenciones
       const aiResult = await callGeminiAI(
         currentNode.data.personality || "Eres un asistente amigable.",
         currentNode.data.knowledge || "",
         userMessage,
-        state.variables
+        state.variables,
+        currentNode // Pasar el nodo actual
       );
       
       console.log(`🤖 Resultado AI:`, aiResult);

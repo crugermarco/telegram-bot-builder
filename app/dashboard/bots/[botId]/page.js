@@ -1977,7 +1977,7 @@ const DelayNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   );
 };
 
-// ========== NODO: AI INTELIGENTE ==========
+// ========== NODO: AI INTELIGENTE (CORREGIDO) ==========
 const AINode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [personality, setPersonality] = useState(data.personality || "Eres un asistente amigable y servicial.");
@@ -2016,26 +2016,38 @@ const AINode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
     setShowEditor(false);
   }, []);
 
+  // ========== VERSIÓN CORREGIDA DE HANDLES ==========
   const renderIntentHandles = () => {
-    return intents.map((intent, index) => {
-      const position = 20 + (index * 35);
-      
+    if (intents.length === 0) {
       return (
-        <div key={`intent-${index}`} style={{ position: 'relative', height: 0 }}>
+        <Handle 
+          type="source" 
+          position={Position.Bottom} 
+          isConnectable={isConnectable} 
+          className="w-3 h-3 bg-purple-500" 
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        />
+      );
+    }
+
+    return intents.map((intent, index) => {
+      const leftPosition = ((index + 1) / (intents.length + 1)) * 100;
+      return (
+        <div key={`intent-${index}`} className="relative">
           <Handle
             type="source"
             id={`intent-${intent}`}
-            position={Position.Right}
+            position={Position.Bottom}
             isConnectable={isConnectable}
             className="w-3 h-3 bg-purple-500 hover:scale-150 transition-transform"
-            style={{ top: `${position}%`, right: '-8px' }}
+            style={{ left: `${leftPosition}%`, bottom: '-8px' }}
           />
           <div 
             className={`absolute text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded-full border ${darkMode ? 'bg-purple-900/50 text-purple-300 border-purple-700' : 'bg-purple-50 text-purple-700 border-purple-200'}`}
             style={{ 
-              right: '15px', 
-              top: `${position - 2}%`,
-              transform: 'translateY(-50%)'
+              left: `${leftPosition}%`, 
+              bottom: '-24px', 
+              transform: 'translateX(-50%)' 
             }}
           >
             {intent}
@@ -2049,6 +2061,7 @@ const AINode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
     <div className={`px-4 py-3 shadow-xl rounded-xl backdrop-blur-sm border-2 border-purple-500 min-w-[380px] group hover:shadow-2xl transition-all duration-300 ${darkMode ? 'bg-gray-800/90 text-white' : 'bg-white/90'}`}>
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
       
+      {/* Handles en la parte inferior */}
       {renderIntentHandles()}
       
       <div className="flex items-center justify-between mb-3">
@@ -2159,13 +2172,13 @@ const AINode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
               className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
             />
             <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Cada intención generará un conector en el lado derecho del nodo.
+              Cada intención generará un conector en la parte inferior del nodo.
             </p>
           </div>
 
           <div className={`p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
             <p className={`text-xs ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
-              <strong>NOTA:</strong> El AI analizará el mensaje del usuario y determinará la intención. Luego el flujo continuará por el conector correspondiente.
+              <strong>NOTA:</strong> El AI analizará el mensaje del usuario y determinará la intención. Luego el flujo continuará por el conector correspondiente en la parte inferior.
             </p>
           </div>
 
