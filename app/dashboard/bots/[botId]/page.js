@@ -132,7 +132,6 @@ const TextMessageNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   );
 };
 
-// ========== NODO: IMAGEN + TEXTO (VERSIÓN CORREGIDA) ==========
 const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [imageUrl, setImageUrl] = useState(data.imageUrl || "");
@@ -161,7 +160,6 @@ const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
     setShowEditor(false);
   }, []);
 
-  // Verificación de datos para depuración
   useEffect(() => {
     console.log(`🖼️ ImageTextNode montado con data:`, data);
   }, [data]);
@@ -302,7 +300,6 @@ const ImageTextNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   );
 };
 
-// ========== NODO: IMAGEN + TEXTO + BOTONES (CORREGIDO) ==========
 const ImageButtonsNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   const [showEditor, setShowEditor] = useState(false);
   const [imageUrl, setImageUrl] = useState(data.imageUrl || "");
@@ -1980,6 +1977,211 @@ const DelayNode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
   );
 };
 
+// ========== NODO: AI INTELIGENTE ==========
+const AINode = ({ id, data, isConnectable, onUpdate, darkMode }) => {
+  const [showEditor, setShowEditor] = useState(false);
+  const [personality, setPersonality] = useState(data.personality || "Eres un asistente amigable y servicial.");
+  const [knowledge, setKnowledge] = useState(data.knowledge || "");
+  const [intentsInput, setIntentsInput] = useState(data.intents ? data.intents.join(', ') : "Ventas, Soporte, Saludo, Despedida");
+  const [intents, setIntents] = useState(data.intents || ["Ventas", "Soporte", "Saludo", "Despedida"]);
+
+  const handleSave = useCallback(() => {
+    const processedIntents = intentsInput
+      .split(',')
+      .map(intent => intent.trim())
+      .filter(intent => intent !== '');
+    
+    setIntents(processedIntents);
+    onUpdate?.({ 
+      personality, 
+      knowledge, 
+      intents: processedIntents 
+    });
+    setShowEditor(false);
+  }, [personality, knowledge, intentsInput, onUpdate]);
+
+  const handleDelete = useCallback((e) => {
+    e.stopPropagation();
+    if (window.confirm("¿Eliminar este nodo?")) {
+      onUpdate?.({ __delete: true });
+    }
+  }, [onUpdate]);
+
+  const handleIntentsChange = (e) => {
+    setIntentsInput(e.target.value);
+  };
+
+  const handleCloseEditor = useCallback((e) => {
+    e.stopPropagation();
+    setShowEditor(false);
+  }, []);
+
+  const renderIntentHandles = () => {
+    return intents.map((intent, index) => {
+      const position = 20 + (index * 35);
+      
+      return (
+        <div key={`intent-${index}`} style={{ position: 'relative', height: 0 }}>
+          <Handle
+            type="source"
+            id={`intent-${intent}`}
+            position={Position.Right}
+            isConnectable={isConnectable}
+            className="w-3 h-3 bg-purple-500 hover:scale-150 transition-transform"
+            style={{ top: `${position}%`, right: '-8px' }}
+          />
+          <div 
+            className={`absolute text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded-full border ${darkMode ? 'bg-purple-900/50 text-purple-300 border-purple-700' : 'bg-purple-50 text-purple-700 border-purple-200'}`}
+            style={{ 
+              right: '15px', 
+              top: `${position - 2}%`,
+              transform: 'translateY(-50%)'
+            }}
+          >
+            {intent}
+          </div>
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className={`px-4 py-3 shadow-xl rounded-xl backdrop-blur-sm border-2 border-purple-500 min-w-[380px] group hover:shadow-2xl transition-all duration-300 ${darkMode ? 'bg-gray-800/90 text-white' : 'bg-white/90'}`}>
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
+      
+      {renderIntentHandles()}
+      
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center">
+          <div className={`p-1.5 rounded-lg mr-2 ${darkMode ? 'bg-purple-900/30' : 'bg-gradient-to-br from-purple-50 to-purple-100'}`}>
+            <Bot className={`w-5 h-5 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+          </div>
+          <span className={`font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>AI Inteligente</span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => setShowEditor(true)}
+            className={`p-1.5 rounded-lg transition ${darkMode ? 'hover:bg-purple-900/30' : 'hover:bg-purple-100'}`}
+          >
+            <Edit className={`w-4 h-4 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+          </button>
+          <button
+            onClick={handleDelete}
+            className={`p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded-lg transition ${darkMode ? 'hover:bg-red-900/30' : ''}`}
+          >
+            <Trash2 className={`w-4 h-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
+          </button>
+        </div>
+      </div>
+
+      {!showEditor ? (
+        <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          <div className="mb-3">
+            <span className={`text-xs uppercase tracking-wider block mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Personalidad:</span>
+            <div className={`text-sm p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-white border border-gray-200'}`}>
+              {personality.length > 60 ? personality.substring(0, 60) + '...' : personality}
+            </div>
+          </div>
+          
+          {knowledge && (
+            <div className="mb-3">
+              <span className={`text-xs uppercase tracking-wider block mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Conocimiento:</span>
+              <div className={`text-sm p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-white border border-gray-200'}`}>
+                {knowledge.length > 60 ? knowledge.substring(0, 60) + '...' : knowledge}
+              </div>
+            </div>
+          )}
+          
+          <div>
+            <span className={`text-xs uppercase tracking-wider block mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Intenciones:</span>
+            <div className="flex flex-wrap gap-2">
+              {intents.map((intent, i) => (
+                <div key={i} className={`px-2 py-1 rounded-lg border text-xs ${darkMode ? 'bg-purple-900/30 border-purple-700 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-700'}`}>
+                  {intent}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className={`p-3 rounded-lg space-y-4 max-h-96 overflow-y-auto ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+          <div className={`flex items-center justify-between sticky top-0 py-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+            <span className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>CONFIGURAR AI</span>
+            <button
+              onClick={handleCloseEditor}
+              className={`p-1 rounded-lg ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
+            >
+              <X className={`w-3 h-3 ${darkMode ? 'text-gray-300' : ''}`} />
+            </button>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Personalidad del AI <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={personality}
+              onChange={(e) => setPersonality(e.target.value)}
+              rows="3"
+              placeholder="Ej: Eres un asistente amable y profesional que ayuda con ventas y soporte técnico."
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Define cómo debe comportarse y hablar el AI.
+            </p>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Base de Conocimientos
+            </label>
+            <textarea
+              value={knowledge}
+              onChange={(e) => setKnowledge(e.target.value)}
+              rows="4"
+              placeholder="Ej: Nuestra empresa vende zapatos deportivos. Tenemos envíos a todo el país. Los precios van desde $500 hasta $2000."
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Información del negocio que el AI debe conocer para responder.
+            </p>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Intenciones (separadas por comas) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={intentsInput}
+              onChange={handleIntentsChange}
+              placeholder="Ventas, Soporte, Saludo, Despedida, Reclamo"
+              className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 ${darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white'}`}
+            />
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Cada intención generará un conector en el lado derecho del nodo.
+            </p>
+          </div>
+
+          <div className={`p-3 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
+            <p className={`text-xs ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+              <strong>NOTA:</strong> El AI analizará el mensaje del usuario y determinará la intención. Luego el flujo continuará por el conector correspondiente.
+            </p>
+          </div>
+
+          <button
+            onClick={handleSave}
+            className="w-full mt-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 flex items-center justify-center font-medium"
+          >
+            <Save className="w-4 h-4 mr-1" />
+            Guardar configuración AI
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function BotBuilder() {
   const params = useParams();
   const router = useRouter();
@@ -2067,6 +2269,13 @@ function BotBuilder() {
     ),
     imagebuttons: (props) => (
       <ImageButtonsNode 
+        {...props} 
+        onUpdate={(newData) => updateNodeData(props.id, newData)} 
+        darkMode={darkMode}
+      />
+    ),
+    ai: (props) => (
+      <AINode 
         {...props} 
         onUpdate={(newData) => updateNodeData(props.id, newData)} 
         darkMode={darkMode}
@@ -2312,6 +2521,11 @@ function BotBuilder() {
               imageUrl: "",
               caption: "Selecciona una opción:",
               options: ["Sí", "No"]
+            } :
+            type === "ai" ? {
+              personality: "Eres un asistente amigable y servicial.",
+              knowledge: "",
+              intents: ["Ventas", "Soporte", "Saludo", "Despedida"]
             } : {}
     };
     
@@ -2516,6 +2730,11 @@ function BotBuilder() {
                     className={`w-full flex items-center p-3 rounded-xl transition-all ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}>
               <Clock className={`w-5 h-5 mr-3 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Temporizador</span>
+            </button>
+            <button onClick={() => addNode("ai")}
+                    className={`w-full flex items-center p-3 rounded-xl transition-all ${darkMode ? 'bg-purple-900/30 hover:bg-purple-900/50' : 'bg-purple-50 hover:bg-purple-100'}`}>
+              <Bot className={`w-5 h-5 mr-3 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+              <span className={`font-medium ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>AI Inteligente</span>
             </button>
           </div>
           <div className={`mt-6 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-slate-200'}`}>
