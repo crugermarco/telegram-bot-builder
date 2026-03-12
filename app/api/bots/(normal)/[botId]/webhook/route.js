@@ -1,14 +1,10 @@
-// /api/bots/[botId]/webhook/route.js
-
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
-import jwt from "jsonwebtoken";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Estado de conversación (en producción usa Redis o BD)
 const conversationState = new Map();
 
 export async function POST(request, { params }) {
@@ -18,7 +14,6 @@ export async function POST(request, { params }) {
     
     console.log(`📨 Webhook recibido para bot ${botId}:`, body);
     
-    // Verificar que es un mensaje de Telegram
     if (body.message) {
       const chatId = body.message.chat.id;
       const userId = body.message.from.id.toString();
@@ -27,7 +22,6 @@ export async function POST(request, { params }) {
       
       console.log(`💬 Mensaje de ${userId}: ${text}`);
       
-      // Obtener el bot y su flujo
       const { data: bot, error: botError } = await supabase
         .from('bots')
         .select('*')
@@ -42,30 +36,26 @@ export async function POST(request, { params }) {
       const nodes = bot.flow?.nodes || [];
       const edges = bot.flow?.edges || [];
       
-      // Procesar el mensaje
       await processMessage(chatId, userId, text, nodes, edges, bot.token, user);
     }
     
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Error en webhook:", error);
-    return NextResponse.json({ ok: true }); // Siempre responder ok a Telegram
+    return NextResponse.json({ ok: true });
   }
 }
 
 async function processMessage(chatId, userId, text, nodes, edges, botToken, user) {
   try {
-    // Obtener o crear estado de conversación con variables iniciales
     let state = conversationState.get(userId) || { 
       currentNodeId: null,
       waitingFor: null,
       variables: {
-        // Variables iniciales del usuario
         nombre: user.first_name || '',
         apellido: user.last_name || '',
         username: user.username || '',
         id: user.id.toString(),
-        // Variables del sistema
         fecha: new Date().toLocaleDateString('es-ES'),
         hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       }
@@ -73,7 +63,6 @@ async function processMessage(chatId, userId, text, nodes, edges, botToken, user
     
     let currentNode = null;
     
-    // Si es /start o no hay nodo actual, buscar nodo inicial
     if (text === "/start" || !state.currentNodeId) {
       currentNode = nodes.find(node => 
         node.type !== "condition" && node.type !== "googlesheets"
@@ -92,19 +81,117 @@ async function processMessage(chatId, userId, text, nodes, edges, botToken, user
       return;
     }
     
-    // Actualizar fecha/hora en cada mensaje
     state.variables.fecha = new Date().toLocaleDateString('es-ES');
     state.variables.hora = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     
-    // Procesar según tipo de nodo
     await processNode(chatId, userId, currentNode, nodes, edges, botToken, state, text);
     
-    // Guardar estado actualizado
     conversationState.set(userId, state);
     
   } catch (error) {
     console.error("Error procesando mensaje:", error);
     await sendTelegramMessage(chatId, "Error procesando mensaje", botToken);
+  }
+}
+
+async function callGeminiAI(personality, knowledge, userMessage, variables) {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      console.error("❌ GEMINI_API_KEY no configurada");
+      return {
+        response: "Lo siento, el servicio de IA no está configurado correctamente.",
+        intent: "default"
+      };
+    }
+
+    const prompt = `
+${personality}
+
+Información del negocio:
+${knowledge}
+
+Variables de la conversación:
+${JSON.stringify(variables, null, 2)}
+
+Mensaje del usuario: "${userMessage}"
+
+Analiza el mensaje del usuario y responde de manera natural y útil basándote en la información proporcionada.
+
+IMPORTANTE: Tu respuesta DEBE ser un objeto JSON con dos campos:
+1. "response": tu respuesta al usuario (texto natural)
+2. "intent": la intención detectada (una de las siguientes: Ventas, Soporte, Saludo, Despedida, Reclamo, default)
+
+Ejemplo de formato de respuesta:
+{
+  "response": "¡Hola! ¿En qué puedo ayudarte hoy?",
+  "intent": "Saludo"
+}
+
+Responde SOLO con el objeto JSON, sin texto adicional.
+`;
+
+    console.log(`🤖 Enviando prompt a Gemini AI...`);
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("❌ Error de Gemini API:", data);
+      throw new Error(data.error?.message || 'Error desconocido');
+    }
+
+    const aiText = data.candidates[0].content.parts[0].text;
+    console.log(`🤖 Respuesta de Gemini:`, aiText);
+
+    try {
+      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        return {
+          response: result.response || "No pude procesar tu mensaje.",
+          intent: result.intent || "default"
+        };
+      } else {
+        return {
+          response: aiText,
+          intent: "default"
+        };
+      }
+    } catch (parseError) {
+      console.error("❌ Error parseando respuesta de Gemini:", parseError);
+      return {
+        response: aiText,
+        intent: "default"
+      };
+    }
+
+  } catch (error) {
+    console.error("❌ Error en callGeminiAI:", error);
+    return {
+      response: "Lo siento, tuve un problema al procesar tu mensaje. Por favor intenta de nuevo.",
+      intent: "default"
+    };
   }
 }
 
@@ -114,11 +201,9 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
   
   switch (currentNode.type) {
     case "text":
-      // Enviar mensaje de texto con variables
       const textContent = replaceVariables(currentNode.data.content || "Mensaje de texto", state.variables);
       await sendTelegramMessage(chatId, textContent, botToken);
       
-      // Avanzar al siguiente nodo
       const nextEdge = edges.find(edge => edge.source === currentNode.id);
       if (nextEdge) {
         state.currentNodeId = nextEdge.target;
@@ -133,19 +218,16 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       
     case "buttons":
       if (state.waitingFor === "button_response") {
-        // Usuario seleccionó una opción
         const selectedOption = userMessage;
         const optionIndex = currentNode.data.options.findIndex(opt => opt === selectedOption);
         
         if (optionIndex !== -1) {
-          // 🟢 GUARDAR VARIABLES DE RESPUESTA
           state.variables.respuesta = selectedOption;
           state.variables.ultimo_mensaje = selectedOption;
           console.log(`📦 Variables guardadas: respuesta = ${selectedOption}`);
           
           await sendTelegramMessage(chatId, `Seleccionaste: ${selectedOption}`, botToken);
           
-          // Buscar conexión específica
           const nextEdgeForOption = edges.find(edge => 
             edge.source === currentNode.id && edge.sourceHandle === `opt${optionIndex}`
           );
@@ -163,13 +245,11 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
           await sendTelegramMessage(chatId, "Opción no válida. Elige una de las opciones:", botToken);
         }
       } else {
-        // PRIMERO: Mostrar el mensaje del nodo con variables
         if (currentNode.data.mensaje) {
           const mensajeProcesado = replaceVariables(currentNode.data.mensaje, state.variables);
           await sendTelegramMessage(chatId, mensajeProcesado, botToken);
         }
         
-        // SEGUNDO: Crear teclado con las opciones
         const keyboard = {
           reply_markup: {
             keyboard: currentNode.data.options.map(opt => [opt]),
@@ -178,16 +258,13 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
           }
         };
         
-        // Enviar opciones como botones
         await sendTelegramMessage(chatId, "Elige una opción:", botToken, keyboard);
-        
         state.waitingFor = "button_response";
       }
       break;
       
     case "preguntar":
       if (state.waitingFor === "question_response") {
-        // 🟢 GUARDAR LA RESPUESTA EN LA VARIABLE CORRESPONDIENTE
         const respuesta = userMessage;
         const variableGuardar = currentNode.data.variableGuardar;
         
@@ -197,12 +274,10 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
           console.log(`📦 Variables actuales:`, state.variables);
         }
         
-        // Procesar mensaje de confirmación con variables
         let confirmacion = currentNode.data.mensajeConfirmacion || "¡Gracias!";
         confirmacion = replaceVariables(confirmacion, state.variables);
         await sendTelegramMessage(chatId, confirmacion, botToken);
         
-        // Avanzar al siguiente nodo
         const nextEdge = edges.find(edge => edge.source === currentNode.id);
         if (nextEdge) {
           state.currentNodeId = nextEdge.target;
@@ -237,7 +312,6 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       break;
       
     case "variable":
-      // 🟢 GUARDAR VARIABLE CON SU VALOR
       if (currentNode.data.variableName) {
         const valorProcesado = replaceVariables(currentNode.data.variableValue || '', state.variables);
         state.variables[currentNode.data.variableName] = valorProcesado;
@@ -264,7 +338,6 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       
       await callGoogleSheets(chatId, currentNode.data, userId, botToken, state.variables);
       
-      // Avanzar al siguiente nodo
       const nextEdgeAfterSheet = edges.find(edge => edge.source === currentNode.id);
       if (nextEdgeAfterSheet) {
         state.currentNodeId = nextEdgeAfterSheet.target;
@@ -275,9 +348,7 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       }
       break;
       
-    // ========== NUEVO NODO: IMAGEN + TEXTO ==========
     case "imagetext":
-      // Enviar imagen con texto
       const imageUrl = currentNode.data.imageUrl;
       const caption = replaceVariables(currentNode.data.caption || "", state.variables);
       
@@ -288,7 +359,6 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
         await sendTelegramMessage(chatId, caption || "Imagen no disponible", botToken);
       }
       
-      // Avanzar al siguiente nodo
       const nextEdgeImage = edges.find(edge => edge.source === currentNode.id);
       if (nextEdgeImage) {
         state.currentNodeId = nextEdgeImage.target;
@@ -301,22 +371,18 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
       }
       break;
       
-    // ========== NUEVO NODO: IMAGEN + TEXTO + BOTONES ==========
     case "imagebuttons":
       if (state.waitingFor === "button_response") {
-        // Usuario seleccionó una opción
         const selectedOption = userMessage;
         const optionIndex = currentNode.data.options.findIndex(opt => opt === selectedOption);
         
         if (optionIndex !== -1) {
-          // Guardar variables de respuesta
           state.variables.respuesta = selectedOption;
           state.variables.ultimo_mensaje = selectedOption;
           console.log(`📦 Variables guardadas: respuesta = ${selectedOption}`);
           
           await sendTelegramMessage(chatId, `Seleccionaste: ${selectedOption}`, botToken);
           
-          // Buscar conexión específica
           const nextEdgeForOption = edges.find(edge => 
             edge.source === currentNode.id && edge.sourceHandle === `opt${optionIndex}`
           );
@@ -334,7 +400,6 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
           await sendTelegramMessage(chatId, "Opción no válida. Elige una de las opciones:", botToken);
         }
       } else {
-        // PRIMERO: Enviar la imagen con texto
         const imageUrl = currentNode.data.imageUrl;
         const caption = replaceVariables(currentNode.data.caption || "Selecciona una opción:", state.variables);
         
@@ -345,7 +410,6 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
           await sendTelegramMessage(chatId, caption, botToken);
         }
         
-        // SEGUNDO: Crear teclado con las opciones
         const keyboard = {
           reply_markup: {
             keyboard: currentNode.data.options.map(opt => [opt]),
@@ -354,10 +418,66 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
           }
         };
         
-        // Enviar opciones como botones
         await sendTelegramMessage(chatId, "Elige una opción:", botToken, keyboard);
-        
         state.waitingFor = "button_response";
+      }
+      break;
+      
+    case "ai":
+      console.log(`🤖 Procesando nodo AI...`);
+      console.log(`🤖 Personalidad:`, currentNode.data.personality);
+      console.log(`🤖 Conocimiento:`, currentNode.data.knowledge);
+      console.log(`🤖 Intenciones:`, currentNode.data.intents);
+      console.log(`🤖 Mensaje usuario:`, userMessage);
+      
+      if (state.waitingFor === "ai_response") {
+        state.waitingFor = null;
+      }
+      
+      const aiResult = await callGeminiAI(
+        currentNode.data.personality || "Eres un asistente amigable.",
+        currentNode.data.knowledge || "",
+        userMessage,
+        state.variables
+      );
+      
+      console.log(`🤖 Resultado AI:`, aiResult);
+      
+      state.variables.ai_response = aiResult.response;
+      state.variables.ai_intent = aiResult.intent;
+      state.variables.ultimo_mensaje = aiResult.response;
+      
+      await sendTelegramMessage(chatId, aiResult.response, botToken);
+      
+      const intentConnector = `intent-${aiResult.intent}`;
+      
+      const nextEdgeForIntent = edges.find(edge => 
+        edge.source === currentNode.id && edge.sourceHandle === intentConnector
+      );
+      
+      if (nextEdgeForIntent) {
+        console.log(`➡️ Continuando por intención: ${aiResult.intent}`);
+        state.currentNodeId = nextEdgeForIntent.target;
+        state.waitingFor = null;
+        
+        const nextNode = nodes.find(node => node.id === nextEdgeForIntent.target);
+        if (nextNode) {
+          await processNode(chatId, userId, nextNode, nodes, edges, botToken, state);
+        }
+      } else {
+        const defaultEdge = edges.find(edge => edge.source === currentNode.id && !edge.sourceHandle);
+        if (defaultEdge) {
+          console.log(`➡️ No se encontró conector para intención, usando default`);
+          state.currentNodeId = defaultEdge.target;
+          state.waitingFor = null;
+          
+          const nextNode = nodes.find(node => node.id === defaultEdge.target);
+          if (nextNode) {
+            await processNode(chatId, userId, nextNode, nodes, edges, botToken, state);
+          }
+        } else {
+          console.log(`⚠️ No hay conectores para este nodo AI`);
+        }
       }
       break;
       
@@ -366,7 +486,6 @@ async function processNode(chatId, userId, currentNode, nodes, edges, botToken, 
   }
 }
 
-// ========== FUNCIÓN PARA GOOGLE SHEETS ==========
 async function callGoogleSheets(chatId, data, userId, botToken, variables) {
   const { appsScriptUrl, sheetName = 'Hoja1' } = data;
   
@@ -380,7 +499,6 @@ async function callGoogleSheets(chatId, data, userId, botToken, variables) {
     console.log(`📊 Enviando a Google Sheets: ${appsScriptUrl}`);
     console.log(`📊 Variables disponibles:`, JSON.stringify(variables, null, 2));
     
-    // Preparar payload con todas las variables
     const payload = {
       ...variables,
       timestamp: new Date().toISOString(),
@@ -390,7 +508,6 @@ async function callGoogleSheets(chatId, data, userId, botToken, variables) {
     
     console.log(`📊 Payload enviado:`, JSON.stringify(payload, null, 2));
 
-    // Enviar a Google Sheets
     const response = await fetch(appsScriptUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -412,13 +529,11 @@ async function callGoogleSheets(chatId, data, userId, botToken, variables) {
   }
 }
 
-// ========== FUNCIÓN PARA REEMPLAZAR VARIABLES EN TEXTOS ==========
 function replaceVariables(text, variables = {}) {
   if (!text) return text;
   
   let result = text;
   
-  // Reemplazar todas las variables {{nombre}} por su valor
   Object.entries(variables).forEach(([key, val]) => {
     result = result.replaceAll(`{{${key}}}`, val?.toString() || '');
   });
@@ -426,7 +541,6 @@ function replaceVariables(text, variables = {}) {
   return result;
 }
 
-// ========== FUNCIÓN PARA ENVIAR FOTOS ==========
 async function sendTelegramPhoto(chatId, photoUrl, caption, botToken) {
   try {
     console.log(`📸 Enviando foto a ${chatId}: ${photoUrl.substring(0, 50)}...`);
@@ -446,7 +560,6 @@ async function sendTelegramPhoto(chatId, photoUrl, caption, botToken) {
     if (!response.ok) {
       console.error("❌ Error enviando foto:", result);
       
-      // Fallback a mensaje de texto si la imagen falla
       if (caption) {
         await sendTelegramMessage(chatId, `[Imagen no disponible]\n\n${caption}`, botToken);
       } else {
@@ -458,7 +571,6 @@ async function sendTelegramPhoto(chatId, photoUrl, caption, botToken) {
   } catch (error) {
     console.error("❌ Error en sendTelegramPhoto:", error);
     
-    // Fallback a mensaje de texto
     if (caption) {
       await sendTelegramMessage(chatId, `[Error al enviar imagen]\n\n${caption}`, botToken);
     } else {
