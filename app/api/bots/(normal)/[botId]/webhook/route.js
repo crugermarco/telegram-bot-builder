@@ -102,144 +102,144 @@ async function processMessage(chatId, userId, text, nodes, edges, botToken, user
   }
 }
 
-// ========== FUNCIÓN GEMINI CON CACHÉ MEJORADA ==========
 async function callGeminiAI(personality, knowledge, userMessage, variables, currentNode) {
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      console.error("❌ GEMINI_API_KEY no configurada");
-      return {
-        response: "Lo siento, el servicio de IA no está configurado correctamente.",
-        intent: "default"
-      };
-    }
-
-    // Crear una clave única para esta solicitud
-    const cacheKey = `${personality.substring(0, 100)}-${knowledge.substring(0, 100)}-${userMessage}-${JSON.stringify(variables)}`;
-    
-    // Verificar si ya tenemos esta respuesta en caché
-    if (geminiCache.has(cacheKey)) {
-      const cached = geminiCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < CACHE_TTL) {
-        console.log(`🔄 Usando respuesta en caché para: "${userMessage.substring(0, 30)}..."`);
-        return cached.data;
-      } else {
-        geminiCache.delete(cacheKey);
-      }
-    }
-
-    // Obtener las intenciones del nodo actual para pasarlas a Gemini
-    const intentsList = currentNode?.data?.intents?.join(', ') || 'Ventas, Soporte, Saludo, Despedida, Reclamo, default';
-
-    const prompt = `
-${personality}
-
-Información del negocio:
-${knowledge}
-
-Variables de la conversación:
-${JSON.stringify(variables, null, 2)}
-
-Mensaje del usuario: "${userMessage}"
-
-Analiza el mensaje del usuario y responde de manera natural y útil basándote en la información proporcionada.
-
-IMPORTANTE: Tu respuesta DEBE ser un objeto JSON con dos campos:
-1. "response": tu respuesta al usuario (texto natural)
-2. "intent": la intención detectada (una de las siguientes: ${intentsList})
-
-Ejemplo de formato de respuesta:
-{
-  "response": "¡Hola! ¿En qué puedo ayudarte hoy?",
-  "intent": "Saludo"
-}
-
-Responde SOLO con el objeto JSON, sin texto adicional.
-`;
-
-    console.log(`🤖 Enviando prompt a Gemini AI...`);
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        }
-      })
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      console.error("❌ Error de Gemini API:", data);
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
       
-      // ========== MANEJO ESPECÍFICO DE ERROR DE CUOTA ==========
-      if (data.error?.message?.includes('Quota exceeded') || data.error?.message?.includes('quota')) {
-        console.warn("⚠️ Cuota de Gemini excedida. Usando respuesta de respaldo.");
+      if (!apiKey) {
+        console.error("❌ GEMINI_API_KEY no configurada");
         return {
-          response: "Lo siento, el servicio de IA está muy solicitado en este momento. Por favor, intenta de nuevo en unos minutos.",
+          response: "Lo siento, el servicio de IA no está configurado correctamente.",
           intent: "default"
         };
       }
+  
+      // Crear una clave única para esta solicitud
+      const cacheKey = `${personality.substring(0, 100)}-${knowledge.substring(0, 100)}-${userMessage}-${JSON.stringify(variables)}`;
       
-      throw new Error(data.error?.message || 'Error desconocido');
-    }
-
-    const aiText = data.candidates[0].content.parts[0].text;
-    console.log(`🤖 Respuesta de Gemini:`, aiText);
-
-    let result;
-    try {
-      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-        result = {
-          response: result.response || "No pude procesar tu mensaje.",
-          intent: result.intent || "default"
-        };
-      } else {
+      // Verificar si ya tenemos esta respuesta en caché
+      if (geminiCache.has(cacheKey)) {
+        const cached = geminiCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < CACHE_TTL) {
+          console.log(`🔄 Usando respuesta en caché para: "${userMessage.substring(0, 30)}..."`);
+          return cached.data;
+        } else {
+          geminiCache.delete(cacheKey);
+        }
+      }
+  
+      // Obtener las intenciones del nodo actual para pasarlas a Gemini
+      const intentsList = currentNode?.data?.intents?.join(', ') || 'Ventas, Soporte, Saludo, Despedida, Reclamo, default';
+  
+      const prompt = `
+  ${personality}
+  
+  Información del negocio:
+  ${knowledge}
+  
+  Variables de la conversación:
+  ${JSON.stringify(variables, null, 2)}
+  
+  Mensaje del usuario: "${userMessage}"
+  
+  Analiza el mensaje del usuario y responde de manera natural y útil basándote en la información proporcionada.
+  
+  IMPORTANTE: Tu respuesta DEBE ser un objeto JSON con dos campos:
+  1. "response": tu respuesta al usuario (texto natural)
+  2. "intent": la intención detectada (una de las siguientes: ${intentsList})
+  
+  Ejemplo de formato de respuesta:
+  {
+    "response": "¡Hola! ¿En qué puedo ayudarte hoy?",
+    "intent": "Saludo"
+  }
+  
+  Responde SOLO con el objeto JSON, sin texto adicional.
+  `;
+  
+      console.log(`🤖 Enviando prompt a Gemini AI usando modelo gemini-2.5-flash...`);
+  
+      // ========== CAMBIO IMPORTANTE: usar gemini-2.5-flash ==========
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      });
+  
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("❌ Error de Gemini API:", data);
+        
+        // Manejo específico de error de cuota
+        if (data.error?.message?.includes('Quota exceeded') || data.error?.message?.includes('quota')) {
+          console.warn("⚠️ Cuota de Gemini excedida. Usando respuesta de respaldo.");
+          return {
+            response: "Lo siento, el servicio de IA está muy solicitado en este momento. Por favor, intenta de nuevo en unos minutos.",
+            intent: "default"
+          };
+        }
+        
+        throw new Error(data.error?.message || 'Error desconocido');
+      }
+  
+      const aiText = data.candidates[0].content.parts[0].text;
+      console.log(`🤖 Respuesta de Gemini:`, aiText);
+  
+      let result;
+      try {
+        const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+          result = {
+            response: result.response || "No pude procesar tu mensaje.",
+            intent: result.intent || "default"
+          };
+        } else {
+          result = {
+            response: aiText,
+            intent: "default"
+          };
+        }
+      } catch (parseError) {
+        console.error("❌ Error parseando respuesta de Gemini:", parseError);
         result = {
           response: aiText,
           intent: "default"
         };
       }
-    } catch (parseError) {
-      console.error("❌ Error parseando respuesta de Gemini:", parseError);
-      result = {
-        response: aiText,
+      
+      // Guardar en caché
+      geminiCache.set(cacheKey, {
+        timestamp: Date.now(),
+        data: result
+      });
+      
+      return result;
+  
+    } catch (error) {
+      console.error("❌ Error en callGeminiAI:", error);
+      
+      // Respuesta de fallback amigable
+      return {
+        response: "Lo siento, tuve un problema al procesar tu mensaje. Por favor intenta de nuevo.",
         intent: "default"
       };
     }
-    
-    // Guardar en caché
-    geminiCache.set(cacheKey, {
-      timestamp: Date.now(),
-      data: result
-    });
-    
-    return result;
-
-  } catch (error) {
-    console.error("❌ Error en callGeminiAI:", error);
-    
-    // Respuesta de fallback amigable
-    return {
-      response: "Lo siento, tuve un problema al procesar tu mensaje. Por favor intenta de nuevo.",
-      intent: "default"
-    };
-  }
 }
 
 async function processNode(chatId, userId, currentNode, nodes, edges, botToken, state, userMessage = null) {
